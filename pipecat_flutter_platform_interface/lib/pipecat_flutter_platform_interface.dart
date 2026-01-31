@@ -1,4 +1,4 @@
-import 'package:pipecat_flutter_platform_interface/src/method_channel_pipecat_flutter.dart';
+import 'package:pipecat_flutter_platform_interface/src/generated/pipecat_api.g.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 /// {@template pipecat_flutter_platform}
@@ -17,12 +17,24 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static PipecatFlutterPlatform _instance = MethodChannelPipecatFlutter();
+  static PipecatFlutterPlatform? _instance;
 
   /// The default instance of [PipecatFlutterPlatform] to use.
   ///
-  /// Defaults to [MethodChannelPipecatFlutter].
-  static PipecatFlutterPlatform get instance => _instance;
+  /// Defaults to throwing an [UnimplementedError].
+  static PipecatFlutterPlatform get instance {
+    final instance = _instance;
+
+    if (instance == null) {
+      throw UnimplementedError(
+        'No platform implementation was registered. '
+        'Make sure to include pipecat_flutter_android and/or pipecat_flutter_ios '
+        'in your pubspec.yaml dependencies.',
+      );
+    }
+
+    return instance;
+  }
 
   /// Platform-specific plugins should set this with their own platform-specific
   /// class that extends [PipecatFlutterPlatform] when they register themselves.
@@ -31,6 +43,27 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  /// Return the current platform name.
-  Future<String?> getPlatformName();
+  /// Starts the session and connects to your transport
+  Future<void> startAndConnect(StartBotParams params) {
+    throw UnimplementedError('startBotAndConnect() has not been implemented.');
+  }
+
+  /// Acts as a dispose too
+  Future<void> disconnect() {
+    throw UnimplementedError('disconnect() has not been implemented.');
+  }
+
+  /// Toggle your microphone
+  Future<void> toggleMicrophone({
+    required bool isEnabled,
+  }) {
+    throw UnimplementedError('toggleMicrophone() has not been implemented.');
+  }
+
+  /// Toggle your camera
+  Future<void> toggleCamera({
+    required bool isEnabled,
+  }) {
+    throw UnimplementedError('toggleCamera() has not been implemented.');
+  }
 }
