@@ -8,13 +8,16 @@ Pod::Spec.new do |s|
   s.description      = <<-DESC
   An iOS implementation of the pipecat_flutter plugin.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'http://pipecat.ai'
   s.license          = { :type => 'BSD', :file => '../LICENSE' }
-  s.author           = { 'Com Kcniverba' => 'email@example.com' }
-  s.source           = { :path => '.' }  
-  s.source_files = 'pipecat_flutter_ios/Sources/**/*.swift'
+  s.author           = { 'Kirk Charles Niverba' => 'kirkniverba@icloud.com' }
+  s.source           = { :path => '.' }
+  s.source_files = 'pipecat_flutter_ios/Sources/pipecat_flutter_ios/**/*.{swift,h,m}'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '6.1'
+  
+  s.dependency 'PipecatClientIOS', '~> 1.2'
+  s.dependency 'PipecatClientIOSDaily', '~> 1.2'
 end

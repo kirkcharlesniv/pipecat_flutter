@@ -13,7 +13,8 @@ import 'package:pigeon/pigeon.dart';
     kotlinOptions: KotlinOptions(
       package: 'com.kcniverba.pipecat_flutter_android',
     ),
-    swiftOut: '../pipecat_flutter_ios/ios/Classes/PipecatApi.g.swift',
+    swiftOut:
+        '../pipecat_flutter_ios/ios/pipecat_flutter_ios/Sources/pipecat_flutter_ios/PipecatApi.g.swift',
     swiftOptions: SwiftOptions(),
   ),
 )
