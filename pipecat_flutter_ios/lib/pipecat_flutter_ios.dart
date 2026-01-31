@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pipecat_flutter_platform_interface/pipecat_flutter_platform_interface.dart';
+import 'package:pipecat_flutter_platform_interface/src/generated/pipecat_api.g.dart';
 
 /// The iOS implementation of [PipecatFlutterPlatform].
 class PipecatFlutterIOS extends PipecatFlutterPlatform {
@@ -8,13 +9,30 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   @visibleForTesting
   final methodChannel = const MethodChannel('pipecat_flutter_ios');
 
+  final _hostApi = PipecatHostApi();
+
   /// Registers this class as the default instance of [PipecatFlutterPlatform]
   static void registerWith() {
     PipecatFlutterPlatform.instance = PipecatFlutterIOS();
   }
 
   @override
-  Future<String?> getPlatformName() {
-    return methodChannel.invokeMethod<String>('getPlatformName');
+  Future<void> startAndConnect(StartBotParams params) {
+    return _hostApi.startAndConnect(params);
+  }
+
+  @override
+  Future<void> disconnect() {
+    return _hostApi.disconnect();
+  }
+
+  @override
+  Future<void> toggleCamera({required bool isEnabled}) {
+    return _hostApi.toggleCamera(isEnabled: isEnabled);
+  }
+
+  @override
+  Future<void> toggleMicrophone({required bool isEnabled}) {
+    return _hostApi.toggleMicrophone(isEnabled: isEnabled);
   }
 }
