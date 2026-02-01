@@ -13,6 +13,8 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   Stream<PipecatEvent>? _eventStream;
   Stream<AudioLevel>? _localAudioStream;
   Stream<AudioLevel>? _remoteAudioStream;
+  Stream<BotOutputEvent>? _botOutputStream;
+  Stream<UserTranscriptionEvent>? _userTranscriptionStream;
 
   /// Registers this class as the default instance of [PipecatFlutterPlatform]
   static void registerWith() {
@@ -55,5 +57,17 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   Stream<AudioLevel> get remoteAudioLevelStream {
     _remoteAudioStream ??= remoteAudioLevel();
     return _remoteAudioStream!;
+  }
+
+  @override
+  Stream<BotOutputEvent> get botOutputStream {
+    _botOutputStream ??= botOutput();
+    return _botOutputStream!;
+  }
+
+  @override
+  Stream<UserTranscriptionEvent> get userTranscriptionStream {
+    _userTranscriptionStream ??= userTranscriptions();
+    return _userTranscriptionStream!;
   }
 }

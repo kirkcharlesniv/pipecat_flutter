@@ -30,6 +30,12 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
   /// Remote participant's (bot) audio level (0.0 - 1.0)
   Stream<AudioLevel> get remoteAudioLevelStream;
 
+  /// Uses the pigeon-generated [BotOutputEvent] stream
+  Stream<BotOutputEvent> get botOutputStream;
+
+  /// Uses the pigeon-generated [UserTranscriptionEvent] stream
+  Stream<UserTranscriptionEvent> get userTranscriptionStream;
+
   /// Initializes the client, and starts to connect to the room
   Future<void> startAndConnect(StartBotParams params);
 
@@ -89,4 +95,15 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
   Stream<AudioLevel> get remoteAudioLevelStream => throw UnimplementedError(
     'remoteAudioLevelStream has not been implemented for this platform.',
   );
+
+  @override
+  Stream<BotOutputEvent> get botOutputStream => throw UnimplementedError(
+    'botOutputStream has not been implemented for this platform.',
+  );
+
+  @override
+  Stream<UserTranscriptionEvent> get userTranscriptionStream =>
+      throw UnimplementedError(
+        'userTranscriptionStream has not been implemented for this platform.',
+      );
 }

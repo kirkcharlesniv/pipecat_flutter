@@ -26,11 +26,12 @@ class PipecatFlutter {
   /// Stream containing only user transcription events
   /// (speech-to-text results from the user).
   Stream<UserTranscriptionEvent> get userTranscriptionEvents =>
-      events.whereType<UserTranscriptionEvent>();
+      _platform.userTranscriptionStream;
 
   /// Stream containing only LLM text events produced by the bot
   /// (model-generated text).
-  Stream<BotLLMText> get botLlmTextEvents => events.whereType<BotLLMText>();
+  Stream<BotLLMText> get botLlmTextEvents =>
+      _platform.localAudioLevelStream.whereType<BotLLMText>();
 
   /// Stream containing only TTS text events produced by the bot
   /// (text being spoken/synthesized).
@@ -38,8 +39,7 @@ class PipecatFlutter {
 
   /// Stream containing only bot output events
   /// (generic bot output signals beyond pure text).
-  Stream<BotOutputEvent> get botOutputEvents =>
-      events.whereType<BotOutputEvent>();
+  Stream<BotOutputEvent> get botOutputEvents => _platform.botOutputStream;
 
   /// Stream containing only server insight events
   /// (when the LLM started and stopped).
