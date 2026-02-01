@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pipecat_flutter_platform_interface/pipecat_flutter_platform_interface.dart';
-import 'package:pipecat_flutter_platform_interface/src/generated/pipecat_api.g.dart';
 
 /// The iOS implementation of [PipecatFlutterPlatform].
 class PipecatFlutterIOS extends PipecatFlutterPlatform {
@@ -10,6 +9,8 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   final methodChannel = const MethodChannel('pipecat_flutter_ios');
 
   final _hostApi = PipecatHostApi();
+
+  Stream<PipecatEvent>? _eventStream;
 
   /// Registers this class as the default instance of [PipecatFlutterPlatform]
   static void registerWith() {
@@ -34,5 +35,11 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   @override
   Future<void> toggleMicrophone({required bool isEnabled}) {
     return _hostApi.toggleMicrophone(isEnabled: isEnabled);
+  }
+
+  @override
+  Stream<PipecatEvent> get eventStream {
+    _eventStream ??= events();
+    return _eventStream!;
   }
 }
