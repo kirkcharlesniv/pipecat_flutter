@@ -105,6 +105,16 @@ class PipecatFlutter {
   Future<void> toggleCamera({required bool isEnabled}) {
     return _platform.toggleCamera(isEnabled: isEnabled);
   }
+
+  /// Local user's microphone level (0.0 - 1.0)
+  /// Updates at ~50-100ms intervals when connected
+  Stream<double> get localAudioLevel =>
+      _platform.localAudioLevelStream.map((e) => e.level);
+
+  /// Remote participant's (bot) audio level (0.0 - 1.0)
+  /// Updates at ~50-100ms intervals when connected
+  Stream<double> get remoteAudioLevel =>
+      _platform.remoteAudioLevelStream.map((e) => e.level);
 }
 
 /// Extension that adds a typed filtering helper to all streams.

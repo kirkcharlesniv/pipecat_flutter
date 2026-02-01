@@ -11,6 +11,8 @@ class PipecatFlutterAndroid extends PipecatFlutterPlatform {
   final _hostApi = PipecatHostApi();
 
   Stream<PipecatEvent>? _eventStream;
+  Stream<AudioLevel>? _localAudioStream;
+  Stream<AudioLevel>? _remoteAudioStream;
 
   /// Registers this class as the default instance of [PipecatFlutterPlatform]
   static void registerWith() {
@@ -41,5 +43,17 @@ class PipecatFlutterAndroid extends PipecatFlutterPlatform {
   Stream<PipecatEvent> get eventStream {
     _eventStream ??= events();
     return _eventStream!;
+  }
+
+  @override
+  Stream<AudioLevel> get localAudioLevelStream {
+    _localAudioStream ??= localAudioLevel();
+    return _localAudioStream!;
+  }
+
+  @override
+  Stream<AudioLevel> get remoteAudioLevelStream {
+    _remoteAudioStream ??= remoteAudioLevel();
+    return _remoteAudioStream!;
   }
 }

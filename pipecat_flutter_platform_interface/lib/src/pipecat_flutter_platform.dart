@@ -24,6 +24,12 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
   /// Use the Pigeon-generated events() function
   Stream<PipecatEvent> get eventStream;
 
+  /// Local user's microphone level (0.0 - 1.0)
+  Stream<AudioLevel> get localAudioLevelStream;
+
+  /// Remote participant's (bot) audio level (0.0 - 1.0)
+  Stream<AudioLevel> get remoteAudioLevelStream;
+
   /// Initializes the client, and starts to connect to the room
   Future<void> startAndConnect(StartBotParams params);
 
@@ -73,4 +79,14 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
       'toggleCamera has not been implemented for this platform.',
     );
   }
+
+  @override
+  Stream<AudioLevel> get localAudioLevelStream => throw UnimplementedError(
+    'localAudioLevelStream has not been implemented for this platform.',
+  );
+
+  @override
+  Stream<AudioLevel> get remoteAudioLevelStream => throw UnimplementedError(
+    'remoteAudioLevelStream has not been implemented for this platform.',
+  );
 }
