@@ -267,7 +267,7 @@ data class UserTranscriptionEvent (
   val isFinal: Boolean,
   val timestamp: String,
   val userId: String
-) : PipecatEvent()
+)
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): UserTranscriptionEvent {
@@ -314,7 +314,7 @@ data class BotOutputEvent (
   /** The output text from the bot. */
   val text: String,
   /** Indicates if this text was spoken by the bot. */
-  val isSpoken: String,
+  val isSpoken: Boolean,
   /**
    * Indicates how the text was aggregated
    * (e.g., “sentence”, “word”, “code”, “url”).
@@ -324,12 +324,12 @@ data class BotOutputEvent (
    * by custom text aggregators used by the server.
    */
   val aggregatedBy: String
-) : PipecatEvent()
+)
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): BotOutputEvent {
       val text = pigeonVar_list[0] as String
-      val isSpoken = pigeonVar_list[1] as String
+      val isSpoken = pigeonVar_list[1] as Boolean
       val aggregatedBy = pigeonVar_list[2] as String
       return BotOutputEvent(text, isSpoken, aggregatedBy)
     }
@@ -862,6 +862,40 @@ abstract class RemoteAudioLevelStreamHandler : PipecatApiPigeonEventChannelWrapp
   }
 // Implement methods from PipecatApiPigeonEventChannelWrapper
 override fun onListen(p0: Any?, sink: PigeonEventSink<AudioLevel>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class BotOutputStreamHandler : PipecatApiPigeonEventChannelWrapper<BotOutputEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: BotOutputStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.botOutput"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<BotOutputEvent>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<BotOutputEvent>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class UserTranscriptionsStreamHandler : PipecatApiPigeonEventChannelWrapper<UserTranscriptionEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: UserTranscriptionsStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.userTranscriptions"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<UserTranscriptionEvent>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<UserTranscriptionEvent>) {}
 
 override fun onCancel(p0: Any?) {}
 }

@@ -282,7 +282,7 @@ struct BackendErrorEvent: PipecatEvent {
 /// including both partial and final results.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct UserTranscriptionEvent: PipecatEvent {
+struct UserTranscriptionEvent: Hashable {
   var text: String
   var isFinal: Bool
   var timestamp: String
@@ -328,11 +328,11 @@ struct UserTranscriptionEvent: PipecatEvent {
 /// what the text represents (e.g. “sentence”, “word”, “code”, “url”).
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct BotOutputEvent: PipecatEvent {
+struct BotOutputEvent: Hashable {
   /// The output text from the bot.
   var text: String
   /// Indicates if this text was spoken by the bot.
-  var isSpoken: String
+  var isSpoken: Bool
   /// Indicates how the text was aggregated
   /// (e.g., “sentence”, “word”, “code”, “url”).
   ///
@@ -345,7 +345,7 @@ struct BotOutputEvent: PipecatEvent {
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> BotOutputEvent? {
     let text = pigeonVar_list[0] as! String
-    let isSpoken = pigeonVar_list[1] as! String
+    let isSpoken = pigeonVar_list[1] as! Bool
     let aggregatedBy = pigeonVar_list[2] as! String
 
     return BotOutputEvent(
@@ -824,6 +824,34 @@ class RemoteAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class BotOutputStreamHandler: PigeonEventChannelWrapper<BotOutputEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: BotOutputStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.botOutput"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<BotOutputEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class UserTranscriptionsStreamHandler: PigeonEventChannelWrapper<UserTranscriptionEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: UserTranscriptionsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.userTranscriptions"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<UserTranscriptionEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }

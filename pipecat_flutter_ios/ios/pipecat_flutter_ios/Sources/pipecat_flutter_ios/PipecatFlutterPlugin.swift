@@ -9,6 +9,8 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var eventStreamHandler: PipecatEventStreamHandler?
   private var localAudioHandler: LocalAudioLevelHandler?
   private var remoteAudioHandler: RemoteAudioLevelHandler?
+  private var botOutputHandler: BotOutputHandler?
+  private var userTranscriptionHandler: UserTranscriptionHandler?
 
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
       let messenger = registrar.messenger()
@@ -31,6 +33,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         let remoteHandler = RemoteAudioLevelHandler()
         instance.remoteAudioHandler = remoteHandler
         RemoteAudioLevelStreamHandler.register(with: messenger, streamHandler: remoteHandler)
+        
+        let botOutputHandler = BotOutputHandler()
+        instance.botOutputHandler = botOutputHandler
+        BotOutputStreamHandler.register(with: messenger, streamHandler: botOutputHandler)
+        
+        let userTranscriptionHandler = UserTranscriptionHandler()
+        instance.userTranscriptionHandler = userTranscriptionHandler
+        UserTranscriptionsStreamHandler.register(with: messenger, streamHandler: userTranscriptionHandler)
       }
   }
   
@@ -163,7 +173,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
   
   public func onUserTranscript(data: Transcript) {
-    eventStreamHandler?.sendEvent(UserTranscriptionEvent(
+    userTranscriptionHandler?.sendEvent(UserTranscriptionEvent(
       text: data.text,
       isFinal: data.final ?? false,
       timestamp: data.timestamp ?? "",
@@ -198,9 +208,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
   
   public func onBotOutput(data: BotOutputData) {
-    eventStreamHandler?.sendEvent(BotOutputEvent(
+    botOutputHandler?.sendEvent(BotOutputEvent(
       text: data.text,
-      isSpoken: String(data.spoken),
+      isSpoken: data.spoken,
       aggregatedBy: data.aggregatedBy.rawValue
     ))
   }

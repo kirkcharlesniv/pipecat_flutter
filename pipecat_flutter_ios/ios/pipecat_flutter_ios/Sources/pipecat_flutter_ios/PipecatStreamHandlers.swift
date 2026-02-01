@@ -52,3 +52,35 @@ class RemoteAudioLevelHandler: RemoteAudioLevelStreamHandler {
     sink?.success(AudioLevel(level: level))
   }
 }
+
+class BotOutputHandler: BotOutputStreamHandler {
+  private var sink: PigeonEventSink<BotOutputEvent>?
+  
+  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<BotOutputEvent>) {
+    self.sink = sink
+  }
+  
+  override func onCancel(withArguments arguments: Any?) {
+    self.sink = nil
+  }
+  
+  func sendEvent(_ event: BotOutputEvent) {
+    sink?.success(event)
+  }
+}
+
+class UserTranscriptionHandler: UserTranscriptionsStreamHandler {
+  private var sink: PigeonEventSink<UserTranscriptionEvent>?
+  
+  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<UserTranscriptionEvent>) {
+    self.sink = sink
+  }
+  
+  override func onCancel(withArguments arguments: Any?) {
+    self.sink = nil
+  }
+  
+  func sendEvent(_ event: UserTranscriptionEvent) {
+    sink?.success(event)
+  }
+}

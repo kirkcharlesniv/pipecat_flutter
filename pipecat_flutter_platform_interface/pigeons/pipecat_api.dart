@@ -106,7 +106,7 @@ final class BackendErrorEvent extends PipecatEvent {
 
 /// Real-time transcription of user speech,
 /// including both partial and final results.
-final class UserTranscriptionEvent extends PipecatEvent {
+final class UserTranscriptionEvent {
   UserTranscriptionEvent({
     required this.text,
     required this.isFinal,
@@ -128,7 +128,7 @@ final class UserTranscriptionEvent extends PipecatEvent {
 /// Along with the text, this event includes a spoken flag to indicate whether
 /// the text was spoken by the bot or not and an aggregated_by field to indicate
 /// what the text represents (e.g. “sentence”, “word”, “code”, “url”).
-final class BotOutputEvent extends PipecatEvent {
+final class BotOutputEvent {
   BotOutputEvent({
     required this.text,
     required this.isSpoken,
@@ -139,7 +139,7 @@ final class BotOutputEvent extends PipecatEvent {
   final String text;
 
   /// Indicates if this text was spoken by the bot.
-  final String isSpoken;
+  final bool isSpoken;
 
   /// Indicates how the text was aggregated
   /// (e.g., “sentence”, “word”, “code”, “url”).
@@ -228,4 +228,16 @@ abstract class PipecatEventStreamApi {
   /// Remote participant's (bot) audio level (0.0 - 1.0)
   /// High frequency (~50-100ms), use for visualizers
   AudioLevel remoteAudioLevel();
+
+  /// Streams [BotOutputEvent]
+  ///
+  /// Placed in a separate stream since this may be a
+  /// high-frequency stream.
+  BotOutputEvent botOutput();
+
+  /// Streams [UserTranscriptionEvent]
+  ///
+  /// Placed in a separate stream since this may be a
+  /// high-frequency stream.
+  UserTranscriptionEvent userTranscriptions();
 }

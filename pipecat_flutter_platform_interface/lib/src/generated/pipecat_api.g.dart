@@ -228,7 +228,7 @@ class BackendErrorEvent extends PipecatEvent {
 
 /// Real-time transcription of user speech,
 /// including both partial and final results.
-class UserTranscriptionEvent extends PipecatEvent {
+class UserTranscriptionEvent {
   UserTranscriptionEvent({
     required this.text,
     required this.isFinal,
@@ -292,7 +292,7 @@ class UserTranscriptionEvent extends PipecatEvent {
 /// Along with the text, this event includes a spoken flag to indicate whether
 /// the text was spoken by the bot or not and an aggregated_by field to indicate
 /// what the text represents (e.g. “sentence”, “word”, “code”, “url”).
-class BotOutputEvent extends PipecatEvent {
+class BotOutputEvent {
   BotOutputEvent({
     required this.text,
     required this.isSpoken,
@@ -303,7 +303,7 @@ class BotOutputEvent extends PipecatEvent {
   String text;
 
   /// Indicates if this text was spoken by the bot.
-  String isSpoken;
+  bool isSpoken;
 
   /// Indicates how the text was aggregated
   /// (e.g., “sentence”, “word”, “code”, “url”).
@@ -328,7 +328,7 @@ class BotOutputEvent extends PipecatEvent {
     result as List<Object?>;
     return BotOutputEvent(
       text: result[0]! as String,
-      isSpoken: result[1]! as String,
+      isSpoken: result[1]! as bool,
       aggregatedBy: result[2]! as String,
     );
   }
@@ -837,6 +837,28 @@ Stream<AudioLevel> remoteAudioLevel( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.remoteAudioLevel$instanceName', pigeonMethodCodec);
   return remoteAudioLevelChannel.receiveBroadcastStream().map((dynamic event) {
     return event as AudioLevel;
+  });
+}
+    
+Stream<BotOutputEvent> botOutput( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel botOutputChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.botOutput$instanceName', pigeonMethodCodec);
+  return botOutputChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as BotOutputEvent;
+  });
+}
+    
+Stream<UserTranscriptionEvent> userTranscriptions( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel userTranscriptionsChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.userTranscriptions$instanceName', pigeonMethodCodec);
+  return userTranscriptionsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as UserTranscriptionEvent;
   });
 }
     
