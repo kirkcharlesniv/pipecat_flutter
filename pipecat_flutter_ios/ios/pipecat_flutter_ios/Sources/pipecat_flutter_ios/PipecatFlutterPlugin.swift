@@ -228,12 +228,18 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     ))
   }
   
+  private var lastSentLocalAudio: Date = .distantPast
   public func onLocalAudioLevel(level: Float) {
+    guard Date().timeIntervalSince(lastSentLocalAudio) > 0.2 else { return } // 5fps max
+    lastSentLocalAudio = Date()
     localAudioHandler?.sendLevel(Double(level))
   }
   
   // TODO: Send participant details
+  private var lastSentRemoteAudio: Date = .distantPast
   public func onRemoteAudioLevel(level: Float, participant: Participant) {
+    guard Date().timeIntervalSince(lastSentRemoteAudio) > 0.2 else { return } // 5fps max
+    lastSentRemoteAudio = Date()
     remoteAudioHandler?.sendLevel(Double(level))
   }
 }
