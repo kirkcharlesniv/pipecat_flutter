@@ -44,8 +44,9 @@ class _HomePageState extends State<HomePage> {
               onPressed: () async {
                 if (!context.mounted) return;
                 try {
-                  final result = await getPlatformName();
-                  setState(() => _platformName = result);
+                  await PipecatFlutter.instance.startAndConnect(
+                    url: 'https://mybc.daily.com/123',
+                  );
                 } on Exception catch (error) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(

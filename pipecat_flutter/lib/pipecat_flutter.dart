@@ -53,10 +53,33 @@ class PipecatFlutter {
 
   /// Start and connect to bot
   ///
-  /// Starts the bot session and establishes a connection using the provided
-  /// [params]. This delegates to the platform implementation.
-  Future<void> startAndConnect(StartBotParams params) {
-    return _platform.startAndConnect(params);
+  /// - [url]: API endpoint to connect to
+  /// - [token]: Optional auth token (not prefixed with "Bearer ")
+  /// - [enableMicrophone]: Enable microphone on start (default: true)
+  /// - [enableCamera]: Enable camera on start (default: false)
+  /// - [headers]: Additional HTTP headers
+  /// - [connectPath]: API path (default: '/connect')
+  /// - [timeoutMs]: Connection timeout in milliseconds
+  Future<void> startAndConnect({
+    required String url,
+    String? token,
+    bool enableMicrophone = true,
+    bool enableCamera = false,
+    Map<String, String>? headers,
+    String connectPath = '/connect',
+    int? timeoutMs,
+  }) {
+    return _platform.startAndConnect(
+      StartBotParams(
+        url: url,
+        token: token,
+        shouldEnableMicrophone: enableMicrophone,
+        shouldEnableCamera: enableCamera,
+        headers: headers,
+        connectPath: connectPath,
+        timeoutInMilliseconds: timeoutMs,
+      ),
+    );
   }
 
   /// Disconnect from session
