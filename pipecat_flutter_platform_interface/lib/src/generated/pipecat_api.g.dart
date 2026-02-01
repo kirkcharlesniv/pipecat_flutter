@@ -517,6 +517,50 @@ class BotLLMText extends PipecatEvent {
 ;
 }
 
+/// Audio level data for visualizers
+/// Sent at high frequency (~50-100ms intervals)
+class AudioLevel {
+  AudioLevel({
+    required this.level,
+  });
+
+  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
+  double level;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      level,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static AudioLevel decode(Object result) {
+    result as List<Object?>;
+    return AudioLevel(
+      level: result[0]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AudioLevel || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 /// The per-token text output of the text-to-speech (TTS) service
 /// (what the TTS actually says).
 class BotTTSText extends PipecatEvent {
@@ -604,8 +648,11 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is BotLLMText) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is BotTTSText) {
+    }    else if (value is AudioLevel) {
       buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is BotTTSText) {
+      buffer.putUint8(142);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -643,6 +690,8 @@ class _PigeonCodec extends StandardMessageCodec {
       case 140: 
         return BotLLMText.decode(readValue(buffer)!);
       case 141: 
+        return AudioLevel.decode(readValue(buffer)!);
+      case 142: 
         return BotTTSText.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -766,6 +815,28 @@ Stream<PipecatEvent> events( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.events$instanceName', pigeonMethodCodec);
   return eventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as PipecatEvent;
+  });
+}
+    
+Stream<AudioLevel> localAudioLevel( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel localAudioLevelChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.localAudioLevel$instanceName', pigeonMethodCodec);
+  return localAudioLevelChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as AudioLevel;
+  });
+}
+    
+Stream<AudioLevel> remoteAudioLevel( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel remoteAudioLevelChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.remoteAudioLevel$instanceName', pigeonMethodCodec);
+  return remoteAudioLevelChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as AudioLevel;
   });
 }
     

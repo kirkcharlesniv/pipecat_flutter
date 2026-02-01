@@ -1,6 +1,3 @@
-// One member abstracts linter due to sealed class usage
-// ignore_for_file: one_member_abstracts
-
 import 'package:pigeon/pigeon.dart';
 
 @ConfigurePigeon(
@@ -202,6 +199,15 @@ final class BotLLMText extends PipecatEvent {
   final String text;
 }
 
+/// Audio level data for visualizers
+/// Sent at high frequency (~50-100ms intervals)
+class AudioLevel {
+  AudioLevel({required this.level});
+
+  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
+  final double level;
+}
+
 /// The per-token text output of the text-to-speech (TTS) service
 /// (what the TTS actually says).
 final class BotTTSText extends PipecatEvent {
@@ -212,5 +218,14 @@ final class BotTTSText extends PipecatEvent {
 
 @EventChannelApi()
 abstract class PipecatEventStreamApi {
+  /// Session events
   PipecatEvent events();
+
+  /// Local user's microphone audio level (0.0 - 1.0)
+  /// High frequency (~50-100ms), use for visualizers
+  AudioLevel localAudioLevel();
+
+  /// Remote participant's (bot) audio level (0.0 - 1.0)
+  /// High frequency (~50-100ms), use for visualizers
+  AudioLevel remoteAudioLevel();
 }

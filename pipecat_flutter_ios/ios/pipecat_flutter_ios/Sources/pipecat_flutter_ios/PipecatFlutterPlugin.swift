@@ -7,6 +7,8 @@ import UIKit
 public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency PipecatHostApi, @preconcurrency PipecatClientDelegate {
   private var client: PipecatClient?
   private var eventStreamHandler: PipecatEventStreamHandler?
+  private var localAudioHandler: LocalAudioLevelHandler?
+  private var remoteAudioHandler: RemoteAudioLevelHandler?
 
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
       let messenger = registrar.messenger()
@@ -16,7 +18,19 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
           
           let streamHandler = PipecatEventStreamHandler()
           instance.eventStreamHandler = streamHandler
-          EventsStreamHandler.register(with: messenger, streamHandler: streamHandler)
+          EventsStreamHandler.register(
+            with: messenger, streamHandler: streamHandler
+          )
+        
+        // Local audio levels
+        let localHandler = LocalAudioLevelHandler()
+        instance.localAudioHandler = localHandler
+        LocalAudioLevelStreamHandler.register(with: messenger, streamHandler: localHandler)
+        
+        // Remote audio levels
+        let remoteHandler = RemoteAudioLevelHandler()
+        instance.remoteAudioHandler = remoteHandler
+        RemoteAudioLevelStreamHandler.register(with: messenger, streamHandler: remoteHandler)
       }
   }
   
@@ -220,22 +234,13 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       aggregatedBy: data.aggregatedBy.rawValue
     ))
   }
-}
-
-// MARK: - Event Stream Handler
-
-class PipecatEventStreamHandler: EventsStreamHandler {
-  private var eventSink: PigeonEventSink<PipecatEvent>?
   
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<PipecatEvent>) {
-    self.eventSink = sink
+  public func onLocalAudioLevel(level: Float) {
+    localAudioHandler?.sendLevel(Double(level))
   }
   
-  override func onCancel(withArguments arguments: Any?) {
-    self.eventSink = nil
-  }
-  
-  func sendEvent(_ event: PipecatEvent) {
-    eventSink?.success(event)
+  // TODO: Send participant details
+  public func onRemoteAudioLevel(level: Float, participant: Participant) {
+    remoteAudioHandler?.sendLevel(Double(level))
   }
 }

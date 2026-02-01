@@ -474,6 +474,40 @@ data class BotLLMText (
 }
 
 /**
+ * Audio level data for visualizers
+ * Sent at high frequency (~50-100ms intervals)
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class AudioLevel (
+  /** Normalized audio level from 0.0 (silent) to 1.0 (loud) */
+  val level: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AudioLevel {
+      val level = pigeonVar_list[0] as Double
+      return AudioLevel(level)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      level,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is AudioLevel) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
  * The per-token text output of the text-to-speech (TTS) service
  * (what the TTS actually says).
  *
@@ -570,6 +604,11 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
+          AudioLevel.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
           BotTTSText.fromList(it)
         }
       }
@@ -626,8 +665,12 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is BotTTSText -> {
+      is AudioLevel -> {
         stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is BotTTSText -> {
+        stream.write(142)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -785,6 +828,40 @@ abstract class EventsStreamHandler : PipecatApiPigeonEventChannelWrapper<Pipecat
   }
 // Implement methods from PipecatApiPigeonEventChannelWrapper
 override fun onListen(p0: Any?, sink: PigeonEventSink<PipecatEvent>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class LocalAudioLevelStreamHandler : PipecatApiPigeonEventChannelWrapper<AudioLevel> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: LocalAudioLevelStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.localAudioLevel"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<AudioLevel>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<AudioLevel>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class RemoteAudioLevelStreamHandler : PipecatApiPigeonEventChannelWrapper<AudioLevel> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: RemoteAudioLevelStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.remoteAudioLevel"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<AudioLevel>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<AudioLevel>) {}
 
 override fun onCancel(p0: Any?) {}
 }

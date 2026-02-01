@@ -472,6 +472,35 @@ struct BotLLMText: PipecatEvent {
   }
 }
 
+/// Audio level data for visualizers
+/// Sent at high frequency (~50-100ms intervals)
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct AudioLevel: Hashable {
+  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
+  var level: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AudioLevel? {
+    let level = pigeonVar_list[0] as! Double
+
+    return AudioLevel(
+      level: level
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      level
+    ]
+  }
+  static func == (lhs: AudioLevel, rhs: AudioLevel) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
 /// The per-token text output of the text-to-speech (TTS) service
 /// (what the TTS actually says).
 ///
@@ -540,6 +569,8 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
     case 140:
       return BotLLMText.fromList(self.readValue() as! [Any?])
     case 141:
+      return AudioLevel.fromList(self.readValue() as! [Any?])
+    case 142:
       return BotTTSText.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -585,8 +616,11 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? BotLLMText {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? BotTTSText {
+    } else if let value = value as? AudioLevel {
       super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? BotTTSText {
+      super.writeByte(142)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -760,6 +794,34 @@ class EventsStreamHandler: PigeonEventChannelWrapper<PipecatEvent> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<PipecatEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class LocalAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: LocalAudioLevelStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.localAudioLevel"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class RemoteAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: RemoteAudioLevelStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.remoteAudioLevel"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }
