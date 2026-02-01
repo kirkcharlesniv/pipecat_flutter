@@ -48,6 +48,15 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     parameters: StartBotParams,
     completion: @escaping (Result<Void, any Error>) -> Void
   ) {
+    if client != nil {
+      completion(.failure(PigeonError(
+        code: "ALREADY_CONNECTED",
+        message: "Client already exists. Disconnect first.",
+        details: nil
+      )))
+      return
+    }
+    
     let options = PipecatClientOptions(
       transport: DailyTransport(),
       enableMic: parameters.shouldEnableMicrophone,
@@ -64,19 +73,23 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     )
     
     client?.connect(transportParams: connectionParams) { result in
+      DispatchQueue.main.async {
         switch result {
         case .success:
-            completion(.success(()))
+          completion(.success(()))
         case .failure(let err):
-            completion(.failure(err))
+          completion(.failure(err))
         }
+      }
     }
   }
   
   func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
+    client?.delegate = nil
     client?.disconnect { result in
       switch result {
       case .success:
+        self.client = nil
         completion(.success(()))
       case .failure(let error):
         completion(.failure(PigeonError(
