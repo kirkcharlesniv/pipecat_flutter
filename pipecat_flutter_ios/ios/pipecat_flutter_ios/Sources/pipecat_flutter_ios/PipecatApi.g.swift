@@ -4,9 +4,9 @@
 import Foundation
 
 #if os(iOS)
-  import Flutter
+  @preconcurrency import Flutter
 #elseif os(macOS)
-  import FlutterMacOS
+  @preconcurrency import FlutterMacOS
 #else
   #error("Unsupported platform.")
 #endif
@@ -642,8 +642,10 @@ class PipecatApiPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
   static let shared = PipecatApiPigeonCodec(readerWriter: PipecatApiPigeonCodecReaderWriter())
 }
 
-var pipecatApiPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: PipecatApiPigeonCodecReaderWriter());
-
+@inline(__always)
+private func pipecatApiPigeonMethodCodec() -> FlutterStandardMethodCodec {
+  FlutterStandardMethodCodec(readerWriter: PipecatApiPigeonCodecReaderWriter())
+}
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol PipecatHostApi {
@@ -794,7 +796,7 @@ class EventsStreamHandler: PigeonEventChannelWrapper<PipecatEvent> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<PipecatEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }
 }
@@ -808,7 +810,7 @@ class LocalAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }
 }
@@ -822,7 +824,7 @@ class RemoteAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }
 }
