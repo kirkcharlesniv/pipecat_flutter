@@ -48,48 +48,18 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     // Set the delegate to receive events
     client?.delegate = self
 
-    let base = parameters.url.trimmingCharacters(
-      in: CharacterSet(charactersIn: "/")
+    let connectionParams = DailyTransportConnectionParams(
+        roomUrl: parameters.url,
+        token: parameters.token
     )
-    let path =
-      parameters.connectPath.hasPrefix("/")
-      ? parameters.connectPath : "/" + parameters.connectPath
-    guard let endpoint = URL(string: base + path) else {
-      completion(
-        .failure(
-          NSError(
-            domain: "pipecat_flutter",
-            code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
-          )
-        )
-      )
-      return
-    }
-
-    var headersDict = parameters.headers ?? [:]
-    headersDict["Authorization"] = parameters.token
-
-    let headersArray = headersDict.map { [$0.key: $0.value] }
-
-    let timeInterval: TimeInterval? = parameters.timeoutInMilliseconds.map {
-      Double($0) / 1000.0
-    }
-
-    let startBotParams = APIRequest(
-      endpoint: endpoint,
-      headers: headersArray,
-      timeout: timeInterval
-    )
-
-    client?.startBotAndConnect(startBotParams: startBotParams) {
-      (result: Result<DailyTransportConnectionParams, AsyncExecutionError>) in
-      switch result {
-      case .success(_):
-        completion(.success(()))
-      case .failure(let err):
-        completion(.failure(err))
-      }
+    
+    client?.connect(transportParams: connectionParams) { result in
+        switch result {
+        case .success:
+            completion(.success(()))
+        case .failure(let err):
+            completion(.failure(err))
+        }
     }
   }
   
