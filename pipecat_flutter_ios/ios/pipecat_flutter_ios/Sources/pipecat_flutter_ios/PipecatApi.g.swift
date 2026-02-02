@@ -226,7 +226,7 @@ protocol PipecatEvent {
 /// Emitted when there's a change in the connection state.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct ConnectionStateEvent: PipecatEvent {
+struct ConnectionStateEvent: Hashable {
   var state: ConnectionState
 
 
@@ -369,7 +369,7 @@ struct BotOutputEvent: Hashable {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
-struct SpeakingEvent: PipecatEvent {
+struct SpeakingEvent: Hashable {
   var state: SpeakingState
 
 
@@ -838,7 +838,7 @@ class BotOutputStreamHandler: PigeonEventChannelWrapper<BotOutputEvent> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<BotOutputEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }
 }
@@ -852,6 +852,34 @@ class UserTranscriptionsStreamHandler: PigeonEventChannelWrapper<UserTranscripti
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<UserTranscriptionEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class SpeakingEventsStreamHandler: PigeonEventChannelWrapper<SpeakingEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: SpeakingEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.speakingEvents"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<SpeakingEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class ConnectionStateEventsStreamHandler: PigeonEventChannelWrapper<ConnectionStateEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: ConnectionStateEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.connectionStateEvents"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<ConnectionStateEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }

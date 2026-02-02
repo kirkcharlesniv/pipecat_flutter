@@ -142,7 +142,7 @@ sealed class PipecatEvent {
 }
 
 /// Emitted when there's a change in the connection state.
-class ConnectionStateEvent extends PipecatEvent {
+class ConnectionStateEvent {
   ConnectionStateEvent({
     required this.state,
   });
@@ -351,7 +351,7 @@ class BotOutputEvent {
 ;
 }
 
-class SpeakingEvent extends PipecatEvent {
+class SpeakingEvent {
   SpeakingEvent({
     required this.state,
   });
@@ -859,6 +859,28 @@ Stream<UserTranscriptionEvent> userTranscriptions( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.userTranscriptions$instanceName', pigeonMethodCodec);
   return userTranscriptionsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as UserTranscriptionEvent;
+  });
+}
+    
+Stream<SpeakingEvent> speakingEvents( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel speakingEventsChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.speakingEvents$instanceName', pigeonMethodCodec);
+  return speakingEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as SpeakingEvent;
+  });
+}
+    
+Stream<ConnectionStateEvent> connectionStateEvents( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel connectionStateEventsChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.connectionStateEvents$instanceName', pigeonMethodCodec);
+  return connectionStateEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as ConnectionStateEvent;
   });
 }
     

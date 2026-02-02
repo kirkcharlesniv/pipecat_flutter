@@ -198,7 +198,7 @@ sealed class PipecatEvent
  */
 data class ConnectionStateEvent (
   val state: ConnectionState
-) : PipecatEvent()
+)
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): ConnectionStateEvent {
@@ -356,7 +356,7 @@ data class BotOutputEvent (
 /** Generated class from Pigeon that represents data sent in messages. */
 data class SpeakingEvent (
   val state: SpeakingState
-) : PipecatEvent()
+)
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): SpeakingEvent {
@@ -896,6 +896,40 @@ abstract class UserTranscriptionsStreamHandler : PipecatApiPigeonEventChannelWra
   }
 // Implement methods from PipecatApiPigeonEventChannelWrapper
 override fun onListen(p0: Any?, sink: PigeonEventSink<UserTranscriptionEvent>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class SpeakingEventsStreamHandler : PipecatApiPigeonEventChannelWrapper<SpeakingEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: SpeakingEventsStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.speakingEvents"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<SpeakingEvent>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<SpeakingEvent>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class ConnectionStateEventsStreamHandler : PipecatApiPigeonEventChannelWrapper<ConnectionStateEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: ConnectionStateEventsStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.connectionStateEvents"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<ConnectionStateEvent>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<ConnectionStateEvent>) {}
 
 override fun onCancel(p0: Any?) {}
 }

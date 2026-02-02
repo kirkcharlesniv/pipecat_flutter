@@ -88,7 +88,7 @@ enum ConnectionState {
 }
 
 /// Emitted when there's a change in the connection state.
-final class ConnectionStateEvent extends PipecatEvent {
+final class ConnectionStateEvent {
   ConnectionStateEvent({required this.state});
 
   final ConnectionState state;
@@ -164,7 +164,7 @@ enum SpeakingState {
   botStoppedSpeaking,
 }
 
-final class SpeakingEvent extends PipecatEvent {
+final class SpeakingEvent {
   SpeakingEvent({required this.state});
 
   final SpeakingState state;
@@ -240,4 +240,10 @@ abstract class PipecatEventStreamApi {
   /// Placed in a separate stream since this may be a
   /// high-frequency stream.
   UserTranscriptionEvent userTranscriptions();
+
+  /// Streams [SpeakingEvent]
+  SpeakingEvent speakingEvents();
+
+  /// Streams [ConnectionStateEvent]
+  ConnectionStateEvent connectionStateEvents();
 }
