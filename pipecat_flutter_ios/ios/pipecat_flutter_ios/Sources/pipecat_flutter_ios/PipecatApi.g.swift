@@ -533,22 +533,26 @@ struct BotTTSText: PipecatEvent {
 struct InputStatusUpdatedEvent: Hashable {
   var isCurrentMicrophoneEnabled: Bool
   var isCurrentCameraEnabled: Bool
+  var isBotAudioMuted: Bool
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> InputStatusUpdatedEvent? {
     let isCurrentMicrophoneEnabled = pigeonVar_list[0] as! Bool
     let isCurrentCameraEnabled = pigeonVar_list[1] as! Bool
+    let isBotAudioMuted = pigeonVar_list[2] as! Bool
 
     return InputStatusUpdatedEvent(
       isCurrentMicrophoneEnabled: isCurrentMicrophoneEnabled,
-      isCurrentCameraEnabled: isCurrentCameraEnabled
+      isCurrentCameraEnabled: isCurrentCameraEnabled,
+      isBotAudioMuted: isBotAudioMuted
     )
   }
   func toList() -> [Any?] {
     return [
       isCurrentMicrophoneEnabled,
       isCurrentCameraEnabled,
+      isBotAudioMuted,
     ]
   }
   static func == (lhs: InputStatusUpdatedEvent, rhs: InputStatusUpdatedEvent) -> Bool {

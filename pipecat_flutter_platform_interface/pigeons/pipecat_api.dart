@@ -225,10 +225,12 @@ final class InputStatusUpdatedEvent {
   InputStatusUpdatedEvent({
     required this.isCurrentMicrophoneEnabled,
     required this.isCurrentCameraEnabled,
+    required this.isBotAudioMuted,
   });
 
   final bool isCurrentMicrophoneEnabled;
   final bool isCurrentCameraEnabled;
+  final bool isBotAudioMuted;
 }
 
 @EventChannelApi()

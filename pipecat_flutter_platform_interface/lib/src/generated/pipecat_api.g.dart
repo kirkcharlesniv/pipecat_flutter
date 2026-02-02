@@ -608,16 +608,20 @@ class InputStatusUpdatedEvent {
   InputStatusUpdatedEvent({
     required this.isCurrentMicrophoneEnabled,
     required this.isCurrentCameraEnabled,
+    required this.isBotAudioMuted,
   });
 
   bool isCurrentMicrophoneEnabled;
 
   bool isCurrentCameraEnabled;
 
+  bool isBotAudioMuted;
+
   List<Object?> _toList() {
     return <Object?>[
       isCurrentMicrophoneEnabled,
       isCurrentCameraEnabled,
+      isBotAudioMuted,
     ];
   }
 
@@ -629,6 +633,7 @@ class InputStatusUpdatedEvent {
     return InputStatusUpdatedEvent(
       isCurrentMicrophoneEnabled: result[0]! as bool,
       isCurrentCameraEnabled: result[1]! as bool,
+      isBotAudioMuted: result[2]! as bool,
     );
   }
 

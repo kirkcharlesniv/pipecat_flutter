@@ -543,20 +543,23 @@ data class BotTTSText (
 /** Generated class from Pigeon that represents data sent in messages. */
 data class InputStatusUpdatedEvent (
   val isCurrentMicrophoneEnabled: Boolean,
-  val isCurrentCameraEnabled: Boolean
+  val isCurrentCameraEnabled: Boolean,
+  val isBotAudioMuted: Boolean
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): InputStatusUpdatedEvent {
       val isCurrentMicrophoneEnabled = pigeonVar_list[0] as Boolean
       val isCurrentCameraEnabled = pigeonVar_list[1] as Boolean
-      return InputStatusUpdatedEvent(isCurrentMicrophoneEnabled, isCurrentCameraEnabled)
+      val isBotAudioMuted = pigeonVar_list[2] as Boolean
+      return InputStatusUpdatedEvent(isCurrentMicrophoneEnabled, isCurrentCameraEnabled, isBotAudioMuted)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       isCurrentMicrophoneEnabled,
       isCurrentCameraEnabled,
+      isBotAudioMuted,
     )
   }
   override fun equals(other: Any?): Boolean {
