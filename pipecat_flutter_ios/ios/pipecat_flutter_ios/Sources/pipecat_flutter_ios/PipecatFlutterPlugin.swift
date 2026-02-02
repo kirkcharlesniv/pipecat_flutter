@@ -11,6 +11,8 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var remoteAudioHandler: RemoteAudioLevelHandler?
   private var botOutputHandler: BotOutputHandler?
   private var userTranscriptionHandler: UserTranscriptionHandler?
+  private var connectionStateHandler: ConnectionStateHandler?
+  private var speakingEventHandler: SpeakingEventHandler?
 
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
       let messenger = registrar.messenger()
@@ -41,6 +43,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         let userTranscriptionHandler = UserTranscriptionHandler()
         instance.userTranscriptionHandler = userTranscriptionHandler
         UserTranscriptionsStreamHandler.register(with: messenger, streamHandler: userTranscriptionHandler)
+        
+        let connectionStateHandler = ConnectionStateHandler()
+        instance.connectionStateHandler = connectionStateHandler
+        ConnectionStateEventsStreamHandler.register(with: messenger, streamHandler: connectionStateHandler)
+        
+        let speakingEventHandler = SpeakingEventHandler()
+        instance.speakingEventHandler = speakingEventHandler
+        SpeakingEventsStreamHandler.register(with: messenger, streamHandler: speakingEventHandler)
       }
   }
   
@@ -140,11 +150,11 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   // MARK: - PipecatClientDelegate
   
   public func onConnected() {
-    eventStreamHandler?.sendEvent(ConnectionStateEvent(state: .connected))
+    connectionStateHandler?.sendEvent(ConnectionStateEvent(state: .connected))
   }
   
   public func onDisconnected() {
-    eventStreamHandler?.sendEvent(ConnectionStateEvent(state: .disconnected))
+    connectionStateHandler?.sendEvent(ConnectionStateEvent(state: .disconnected))
   }
   
   public func onTransportStateChanged(state: TransportState) {
@@ -161,7 +171,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       connectionState = .disconnected
     }
     
-    eventStreamHandler?.sendEvent(ConnectionStateEvent(state: connectionState))
+    connectionStateHandler?.sendEvent(ConnectionStateEvent(state: connectionState))
   }
   
   public func onError(message: RTVIMessageInbound) {
@@ -170,19 +180,19 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
   
   public func onUserStartedSpeaking() {
-    eventStreamHandler?.sendEvent(SpeakingEvent(state: .userStartedSpeaking))
+    speakingEventHandler?.sendEvent(SpeakingEvent(state: .userStartedSpeaking))
   }
   
   public func onUserStoppedSpeaking() {
-    eventStreamHandler?.sendEvent(SpeakingEvent(state: .userStoppedSpeaking))
+    speakingEventHandler?.sendEvent(SpeakingEvent(state: .userStoppedSpeaking))
   }
   
   public func onBotStartedSpeaking() {
-    eventStreamHandler?.sendEvent(SpeakingEvent(state: .botStartedSpeaking))
+    speakingEventHandler?.sendEvent(SpeakingEvent(state: .botStartedSpeaking))
   }
   
   public func onBotStoppedSpeaking() {
-    eventStreamHandler?.sendEvent(SpeakingEvent(state: .botStoppedSpeaking))
+    speakingEventHandler?.sendEvent(SpeakingEvent(state: .botStoppedSpeaking))
   }
   
   public func onUserTranscript(data: Transcript) {

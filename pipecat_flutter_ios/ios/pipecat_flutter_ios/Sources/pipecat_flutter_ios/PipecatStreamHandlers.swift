@@ -84,3 +84,36 @@ class UserTranscriptionHandler: UserTranscriptionsStreamHandler {
     sink?.success(event)
   }
 }
+
+class ConnectionStateHandler: ConnectionStateEventsStreamHandler {
+  private var sink: PigeonEventSink<ConnectionStateEvent>?
+  
+  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<ConnectionStateEvent>) {
+    self.sink = sink
+  }
+  
+  override func onCancel(withArguments arguments: Any?) {
+    self.sink = nil
+  }
+  
+  func sendEvent(_ event: ConnectionStateEvent) {
+    sink?.success(event)
+  }
+}
+
+
+class SpeakingEventHandler: SpeakingEventsStreamHandler {
+  private var sink: PigeonEventSink<SpeakingEvent>?
+  
+  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<SpeakingEvent>) {
+    self.sink = sink
+  }
+  
+  override func onCancel(withArguments arguments: Any?) {
+    self.sink = nil
+  }
+  
+  func sendEvent(_ event: SpeakingEvent) {
+    sink?.success(event)
+  }
+}
