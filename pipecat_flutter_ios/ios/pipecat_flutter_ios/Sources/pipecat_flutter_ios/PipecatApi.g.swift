@@ -894,7 +894,7 @@ class BotOutputStreamHandler: PigeonEventChannelWrapper<BotOutputEvent> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<BotOutputEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }
 }
