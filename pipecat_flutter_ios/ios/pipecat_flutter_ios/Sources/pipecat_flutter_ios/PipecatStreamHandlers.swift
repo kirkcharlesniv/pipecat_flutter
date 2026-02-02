@@ -117,3 +117,19 @@ class SpeakingEventHandler: SpeakingEventsStreamHandler {
     sink?.success(event)
   }
 }
+
+class InputStatusUpdatedHandler: InputStatusEventsStreamHandler {
+  private var sink: PigeonEventSink<InputStatusUpdatedEvent>?
+  
+  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<InputStatusUpdatedEvent>) {
+    self.sink = sink
+  }
+  
+  override func onCancel(withArguments arguments: Any?) {
+    self.sink = nil
+  }
+  
+  func sendEvent(_ event: InputStatusUpdatedEvent) {
+    sink?.success(event)
+  }
+}

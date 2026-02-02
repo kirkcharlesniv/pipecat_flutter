@@ -42,6 +42,9 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
   /// Uses the pigeon-generated [SpeakingEvent] stream
   Stream<ConnectionStateEvent> get connectionStateEventStream;
 
+  /// Uses the pigeon-generated [InputStatusUpdatedEvent] stream
+  Stream<InputStatusUpdatedEvent> get inputStatusStream;
+
   /// Initializes the client, and starts to connect to the room
   Future<void> startAndConnect(StartBotParams params);
 
@@ -132,4 +135,10 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
   Stream<SpeakingEvent> get speakingEventStream => throw UnimplementedError(
     'speakingEventStream has not been implemented for this platform.',
   );
+
+  @override
+  Stream<InputStatusUpdatedEvent> get inputStatusStream =>
+      throw UnimplementedError(
+        'inputStatusStream has not been implemented for this platform.',
+      );
 }

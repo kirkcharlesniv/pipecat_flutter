@@ -13,6 +13,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var userTranscriptionHandler: UserTranscriptionHandler?
   private var connectionStateHandler: ConnectionStateHandler?
   private var speakingEventHandler: SpeakingEventHandler?
+  private var inputStatusUpdatedHandler: InputStatusUpdatedHandler?
 
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
       let messenger = registrar.messenger()
@@ -51,6 +52,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         let speakingEventHandler = SpeakingEventHandler()
         instance.speakingEventHandler = speakingEventHandler
         SpeakingEventsStreamHandler.register(with: messenger, streamHandler: speakingEventHandler)
+        
+        let inputStatusUpdatedHandler = InputStatusUpdatedHandler()
+        instance.inputStatusUpdatedHandler = inputStatusUpdatedHandler
+        InputStatusEventsStreamHandler.register(with: messenger, streamHandler: inputStatusUpdatedHandler)
       }
   }
   
@@ -251,6 +256,32 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   
   public func onBotTtsStopped() {
     eventStreamHandler?.sendEvent(ServerInsightEvent(type: .botTtsStopped))
+  }
+  
+  public func onMicUpdated(mic: MediaDeviceInfo?) {
+    guard let transport = client?.transport as? DailyTransport else { return }
+      
+    let isEnabled = transport.isMicEnabled()
+    
+    inputStatusUpdatedHandler?.sendEvent(
+      InputStatusUpdatedEvent(
+        isCurrentMicrophoneEnabled: isEnabled,
+        isCurrentCameraEnabled: transport.isCamEnabled()
+      )
+    )
+  }
+  
+  public func onCamUpdated(cam: MediaDeviceInfo?) {
+    guard let transport = client?.transport as? DailyTransport else { return }
+      
+    let isEnabled = transport.isCamEnabled()
+    
+    inputStatusUpdatedHandler?.sendEvent(
+      InputStatusUpdatedEvent(
+        isCurrentMicrophoneEnabled: transport.isMicEnabled(),
+        isCurrentCameraEnabled: isEnabled
+      )
+    )
   }
   
   public func onBotOutput(data: PipecatClientIOS.BotOutputData) {

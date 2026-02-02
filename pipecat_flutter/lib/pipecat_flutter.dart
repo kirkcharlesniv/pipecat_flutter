@@ -52,6 +52,11 @@ class PipecatFlutter {
   Stream<BackendErrorEvent> get errorEvents =>
       events.whereType<BackendErrorEvent>();
 
+  /// Stream containing only backend error events
+  /// (errors originating from the platform/backend).
+  Stream<InputStatusUpdatedEvent> get inputStatusEvents =>
+      _platform.inputStatusStream;
+
   /// Start and connect to bot
   ///
   /// - [url]: API endpoint to connect to
