@@ -539,6 +539,37 @@ data class BotTTSText (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class InputStatusUpdatedEvent (
+  val isCurrentMicrophoneEnabled: Boolean,
+  val isCurrentCameraEnabled: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): InputStatusUpdatedEvent {
+      val isCurrentMicrophoneEnabled = pigeonVar_list[0] as Boolean
+      val isCurrentCameraEnabled = pigeonVar_list[1] as Boolean
+      return InputStatusUpdatedEvent(isCurrentMicrophoneEnabled, isCurrentCameraEnabled)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      isCurrentMicrophoneEnabled,
+      isCurrentCameraEnabled,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is InputStatusUpdatedEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
 private open class PipecatApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -612,6 +643,11 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
           BotTTSText.fromList(it)
         }
       }
+      143.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          InputStatusUpdatedEvent.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -673,6 +709,10 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
         stream.write(142)
         writeValue(stream, value.toList())
       }
+      is InputStatusUpdatedEvent -> {
+        stream.write(143)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -691,6 +731,7 @@ interface PipecatHostApi {
   fun toggleMicrophone(isEnabled: Boolean, callback: (Result<Unit>) -> Unit)
   /** Toggle your camera */
   fun toggleCamera(isEnabled: Boolean, callback: (Result<Unit>) -> Unit)
+  fun muteBotAudio(isMuted: Boolean, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by PipecatHostApi. */
@@ -763,6 +804,25 @@ interface PipecatHostApi {
             val args = message as List<Any?>
             val isEnabledArg = args[0] as Boolean
             api.toggleCamera(isEnabledArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PipecatApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(PipecatApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val isMutedArg = args[0] as Boolean
+            api.muteBotAudio(isMutedArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(PipecatApiPigeonUtils.wrapError(error))
@@ -930,6 +990,23 @@ abstract class ConnectionStateEventsStreamHandler : PipecatApiPigeonEventChannel
   }
 // Implement methods from PipecatApiPigeonEventChannelWrapper
 override fun onListen(p0: Any?, sink: PigeonEventSink<ConnectionStateEvent>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class InputStatusEventsStreamHandler : PipecatApiPigeonEventChannelWrapper<InputStatusUpdatedEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: InputStatusEventsStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.inputStatusEvents"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = PipecatApiPigeonStreamHandler<InputStatusUpdatedEvent>(streamHandler)
+      EventChannel(messenger, channelName, PipecatApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from PipecatApiPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<InputStatusUpdatedEvent>) {}
 
 override fun onCancel(p0: Any?) {}
 }

@@ -75,6 +75,11 @@ abstract class PipecatHostApi {
   void toggleCamera({
     required bool isEnabled,
   });
+
+  @async
+  void muteBotAudio({
+    required bool isMuted,
+  });
 }
 
 // ==== EVENTS
@@ -216,6 +221,16 @@ final class BotTTSText extends PipecatEvent {
   final String text;
 }
 
+final class InputStatusUpdatedEvent {
+  InputStatusUpdatedEvent({
+    required this.isCurrentMicrophoneEnabled,
+    required this.isCurrentCameraEnabled,
+  });
+
+  final bool isCurrentMicrophoneEnabled;
+  final bool isCurrentCameraEnabled;
+}
+
 @EventChannelApi()
 abstract class PipecatEventStreamApi {
   /// Session events
@@ -246,4 +261,7 @@ abstract class PipecatEventStreamApi {
 
   /// Streams [ConnectionStateEvent]
   ConnectionStateEvent connectionStateEvents();
+
+  /// Streams [InputStatusUpdatedEvent]
+  InputStatusUpdatedEvent inputStatusEvents();
 }

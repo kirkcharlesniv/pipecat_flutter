@@ -529,6 +529,35 @@ struct BotTTSText: PipecatEvent {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct InputStatusUpdatedEvent: Hashable {
+  var isCurrentMicrophoneEnabled: Bool
+  var isCurrentCameraEnabled: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> InputStatusUpdatedEvent? {
+    let isCurrentMicrophoneEnabled = pigeonVar_list[0] as! Bool
+    let isCurrentCameraEnabled = pigeonVar_list[1] as! Bool
+
+    return InputStatusUpdatedEvent(
+      isCurrentMicrophoneEnabled: isCurrentMicrophoneEnabled,
+      isCurrentCameraEnabled: isCurrentCameraEnabled
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isCurrentMicrophoneEnabled,
+      isCurrentCameraEnabled,
+    ]
+  }
+  static func == (lhs: InputStatusUpdatedEvent, rhs: InputStatusUpdatedEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
 private class PipecatApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -572,6 +601,8 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
       return AudioLevel.fromList(self.readValue() as! [Any?])
     case 142:
       return BotTTSText.fromList(self.readValue() as! [Any?])
+    case 143:
+      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -622,6 +653,9 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? BotTTSText {
       super.writeByte(142)
       super.writeValue(value.toList())
+    } else if let value = value as? InputStatusUpdatedEvent {
+      super.writeByte(143)
+      super.writeValue(value.toList())
     } else {
       super.writeValue(value)
     }
@@ -657,6 +691,7 @@ protocol PipecatHostApi {
   func toggleMicrophone(isEnabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   /// Toggle your camera
   func toggleCamera(isEnabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -734,6 +769,23 @@ class PipecatHostApiSetup {
       }
     } else {
       toggleCameraChannel.setMessageHandler(nil)
+    }
+    let muteBotAudioChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      muteBotAudioChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let isMutedArg = args[0] as! Bool
+        api.muteBotAudio(isMuted: isMutedArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      muteBotAudioChannel.setMessageHandler(nil)
     }
   }
 }
@@ -880,6 +932,20 @@ class ConnectionStateEventsStreamHandler: PigeonEventChannelWrapper<ConnectionSt
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<ConnectionStateEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class InputStatusEventsStreamHandler: PigeonEventChannelWrapper<InputStatusUpdatedEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: InputStatusEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.inputStatusEvents"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<InputStatusUpdatedEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }

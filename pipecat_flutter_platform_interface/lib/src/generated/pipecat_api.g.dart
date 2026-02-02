@@ -604,6 +604,52 @@ class BotTTSText extends PipecatEvent {
 ;
 }
 
+class InputStatusUpdatedEvent {
+  InputStatusUpdatedEvent({
+    required this.isCurrentMicrophoneEnabled,
+    required this.isCurrentCameraEnabled,
+  });
+
+  bool isCurrentMicrophoneEnabled;
+
+  bool isCurrentCameraEnabled;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      isCurrentMicrophoneEnabled,
+      isCurrentCameraEnabled,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static InputStatusUpdatedEvent decode(Object result) {
+    result as List<Object?>;
+    return InputStatusUpdatedEvent(
+      isCurrentMicrophoneEnabled: result[0]! as bool,
+      isCurrentCameraEnabled: result[1]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! InputStatusUpdatedEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -654,6 +700,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is BotTTSText) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
+    }    else if (value is InputStatusUpdatedEvent) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -693,6 +742,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return AudioLevel.decode(readValue(buffer)!);
       case 142: 
         return BotTTSText.decode(readValue(buffer)!);
+      case 143: 
+        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -805,6 +856,28 @@ class PipecatHostApi {
       return;
     }
   }
+
+  Future<void> muteBotAudio({required bool isMuted}) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[isMuted]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
 }
 
 Stream<PipecatEvent> events( {String instanceName = ''}) {
@@ -881,6 +954,17 @@ Stream<ConnectionStateEvent> connectionStateEvents( {String instanceName = ''}) 
       EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.connectionStateEvents$instanceName', pigeonMethodCodec);
   return connectionStateEventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as ConnectionStateEvent;
+  });
+}
+    
+Stream<InputStatusUpdatedEvent> inputStatusEvents( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel inputStatusEventsChannel =
+      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.inputStatusEvents$instanceName', pigeonMethodCodec);
+  return inputStatusEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as InputStatusUpdatedEvent;
   });
 }
     
