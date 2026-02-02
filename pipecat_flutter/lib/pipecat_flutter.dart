@@ -1,4 +1,5 @@
 import 'package:pipecat_flutter_platform_interface/pipecat_flutter_platform_interface.dart';
+export 'package:pipecat_flutter_platform_interface/pipecat_flutter_platform_interface.dart';
 
 /// Public-facing facade for the Pipecat Flutter plugin.
 class PipecatFlutter {
