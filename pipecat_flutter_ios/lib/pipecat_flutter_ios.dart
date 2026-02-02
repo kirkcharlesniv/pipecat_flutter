@@ -15,6 +15,8 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   Stream<AudioLevel>? _remoteAudioStream;
   Stream<BotOutputEvent>? _botOutputStream;
   Stream<UserTranscriptionEvent>? _userTranscriptionStream;
+  Stream<ConnectionStateEvent>? _connectionStateEventStream;
+  Stream<SpeakingEvent>? _speakingEventStream;
 
   /// Registers this class as the default instance of [PipecatFlutterPlatform]
   static void registerWith() {
@@ -69,5 +71,17 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   Stream<UserTranscriptionEvent> get userTranscriptionStream {
     _userTranscriptionStream ??= userTranscriptions();
     return _userTranscriptionStream!;
+  }
+
+  @override
+  Stream<ConnectionStateEvent> get connectionStateEventStream {
+    _connectionStateEventStream ??= connectionStateEvents();
+    return _connectionStateEventStream!;
+  }
+
+  @override
+  Stream<SpeakingEvent> get speakingEventStream {
+    _speakingEventStream ??= speakingEvents();
+    return _speakingEventStream!;
   }
 }

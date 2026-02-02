@@ -19,10 +19,10 @@ class PipecatFlutter {
 
   /// Stream containing only connection state change events (e.g., connected/disconnected).
   Stream<ConnectionStateEvent> get connectionStateEvents =>
-      events.whereType<ConnectionStateEvent>();
+      _platform.connectionStateEventStream;
 
   /// Stream containing only speaking state events (e.g., user/bot started/stopped speaking).
-  Stream<SpeakingEvent> get speakingEvents => events.whereType<SpeakingEvent>();
+  Stream<SpeakingEvent> get speakingEvents => _platform.speakingEventStream;
 
   /// Stream containing only user transcription events
   /// (speech-to-text results from the user).
