@@ -107,6 +107,11 @@ class PipecatFlutter {
     return _platform.toggleCamera(isEnabled: isEnabled);
   }
 
+  /// Mutes speaker output
+  Future<void> muteBotMicrophone({required bool isMuted}) {
+    return _platform.muteBotMicrophone(isMuted: isMuted);
+  }
+
   /// Local user's microphone level (0.0 - 1.0)
   /// Updates at ~50-100ms intervals when connected
   Stream<double> get localAudioLevel =>

@@ -53,6 +53,9 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
 
   /// Toggles your camera on or off
   Future<void> toggleCamera({required bool isEnabled});
+
+  /// Unsubscribes to the microphone stream of the bot
+  Future<void> muteBotMicrophone({required bool isMuted});
 }
 
 /// Default implementation using Pigeon-generated code
@@ -91,6 +94,12 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
       'toggleCamera has not been implemented for this platform.',
     );
   }
+
+  @override
+  Future<void> muteBotMicrophone({required bool isMuted}) =>
+      throw UnimplementedError(
+        'muteBotMicrophone has not been implemented for this platform.',
+      );
 
   @override
   Stream<AudioLevel> get localAudioLevelStream => throw UnimplementedError(

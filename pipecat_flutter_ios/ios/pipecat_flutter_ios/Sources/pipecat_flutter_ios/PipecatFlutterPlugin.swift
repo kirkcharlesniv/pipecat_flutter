@@ -56,7 +56,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   
   func startAndConnect(
     parameters: StartBotParams,
-    completion: @escaping (Result<Void, any Error>) -> Void
+    completion: @escaping (Result<Void, Error>) -> Void
   ) {
     if client != nil {
       completion(.failure(PigeonError(
@@ -88,13 +88,13 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         case .success:
           completion(.success(()))
         case .failure(let err):
-          completion(.failure(err))
+          completion(.failure(err as Error))
         }
       }
     }
   }
   
-  func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
+  func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
     client?.delegate = nil
     client?.disconnect { result in
       switch result {
@@ -113,7 +113,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func toggleMicrophone(
     isEnabled: Bool,
-    completion: @escaping (Result<Void, any Error>) -> Void
+    completion: @escaping (Result<Void, Error>) -> Void
   ) {
     client?.enableMic(enable: isEnabled) { result in
       switch result {
@@ -131,7 +131,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func toggleCamera(
     isEnabled: Bool,
-    completion: @escaping (Result<Void, any Error>) -> Void
+    completion: @escaping (Result<Void, Error>) -> Void
   ) {
     client?.enableCam(enable: isEnabled) { result in
       switch result {
@@ -147,6 +147,31 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
   
+  func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+    guard let client = client,
+           let dailyTransport = client.transport as? DailyTransport else {
+         completion(.failure(PigeonError(
+             code: "NO_CLIENT",
+             message: "Client or transport not available",
+             details: nil
+         )))
+         return
+     }
+     
+     Task { @MainActor in
+         do {
+             try await muteRemoteParticipantAudio(transport: dailyTransport, muted: isMuted)
+             completion(.success(()))
+         } catch {
+             completion(.failure(PigeonError(
+                 code: "MUTE_ERROR",
+                 message: error.localizedDescription,
+                 details: nil
+             )))
+         }
+     }
+  }
+  
   // MARK: - PipecatClientDelegate
   
   public func onConnected() {
@@ -157,7 +182,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     connectionStateHandler?.sendEvent(ConnectionStateEvent(state: .disconnected))
   }
   
-  public func onTransportStateChanged(state: TransportState) {
+  public func onTransportStateChanged(state: PipecatClientIOS.TransportState) {
     // Map TransportState to your ConnectionState if needed
     let connectionState: ConnectionState
     switch state {
@@ -174,7 +199,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     connectionStateHandler?.sendEvent(ConnectionStateEvent(state: connectionState))
   }
   
-  public func onError(message: RTVIMessageInbound) {
+  public func onError(message: PipecatClientIOS.RTVIMessageInbound) {
     let errorMessage = String(describing: message.data ?? "Unknown error")
     eventStreamHandler?.sendEvent(BackendErrorEvent(message: errorMessage))
   }
@@ -195,7 +220,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     speakingEventHandler?.sendEvent(SpeakingEvent(state: .botStoppedSpeaking))
   }
   
-  public func onUserTranscript(data: Transcript) {
+  public func onUserTranscript(data: PipecatClientIOS.Transcript) {
     userTranscriptionHandler?.sendEvent(UserTranscriptionEvent(
       text: data.text,
       isFinal: data.final ?? false,
@@ -205,12 +230,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
   
   public func onBotLlmText(data: PipecatClientIOS.BotLLMText) {
-    // Note: BotLLMText from PipecatClientIOS vs your Pigeon-generated one
     eventStreamHandler?.sendEvent(BotLLMText(text: data.text))
   }
   
   public func onBotTtsText(data: PipecatClientIOS.BotTTSText) {
-    // Note: BotTTSText from PipecatClientIOS vs your Pigeon-generated one
     eventStreamHandler?.sendEvent(BotTTSText(text: data.text))
   }
   
@@ -230,7 +253,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     eventStreamHandler?.sendEvent(ServerInsightEvent(type: .botTtsStopped))
   }
   
-  public func onBotOutput(data: BotOutputData) {
+  public func onBotOutput(data: PipecatClientIOS.BotOutputData) {
     botOutputHandler?.sendEvent(BotOutputEvent(
       text: data.text,
       isSpoken: data.spoken,
@@ -240,15 +263,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   
   private var lastSentLocalAudio: Date = .distantPast
   public func onLocalAudioLevel(level: Float) {
-    guard Date().timeIntervalSince(lastSentLocalAudio) > 0.2 else { return } // 5fps max
+    guard Date().timeIntervalSince(lastSentLocalAudio) > 0.2 else { return }
     lastSentLocalAudio = Date()
     localAudioHandler?.sendLevel(Double(level))
   }
   
-  // TODO: Send participant details
   private var lastSentRemoteAudio: Date = .distantPast
-  public func onRemoteAudioLevel(level: Float, participant: Participant) {
-    guard Date().timeIntervalSince(lastSentRemoteAudio) > 0.2 else { return } // 5fps max
+  public func onRemoteAudioLevel(level: Float, participant: PipecatClientIOS.Participant) {
+    guard Date().timeIntervalSince(lastSentRemoteAudio) > 0.2 else { return }
     lastSentRemoteAudio = Date()
     remoteAudioHandler?.sendLevel(Double(level))
   }

@@ -44,6 +44,11 @@ class PipecatFlutterAndroid extends PipecatFlutterPlatform {
   }
 
   @override
+  Future<void> muteBotMicrophone({required bool isMuted}) {
+    return _hostApi.muteBotAudio(isMuted: isMuted);
+  }
+
+  @override
   Stream<PipecatEvent> get eventStream {
     _eventStream ??= events();
     return _eventStream!;
