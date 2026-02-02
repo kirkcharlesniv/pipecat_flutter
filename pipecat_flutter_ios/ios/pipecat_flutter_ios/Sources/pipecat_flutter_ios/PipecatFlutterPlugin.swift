@@ -14,6 +14,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var connectionStateHandler: ConnectionStateHandler?
   private var speakingEventHandler: SpeakingEventHandler?
   private var inputStatusUpdatedHandler: InputStatusUpdatedHandler?
+  private var isBotAudioMuted: Bool = false
 
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
       let messenger = registrar.messenger()
@@ -153,28 +154,39 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
   
   func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
-    guard let client = client,
-           let dailyTransport = client.transport as? DailyTransport else {
-         completion(.failure(PigeonError(
-             code: "NO_CLIENT",
-             message: "Client or transport not available",
-             details: nil
-         )))
-         return
-     }
-     
-     Task { @MainActor in
-         do {
-             try await muteRemoteParticipantAudio(transport: dailyTransport, muted: isMuted)
-             completion(.success(()))
-         } catch {
-             completion(.failure(PigeonError(
-                 code: "MUTE_ERROR",
-                 message: error.localizedDescription,
-                 details: nil
-             )))
-         }
-     }
+      guard let client = client,
+            let dailyTransport = client.transport as? DailyTransport else {
+          completion(.failure(PigeonError(
+              code: "NO_CLIENT",
+              message: "Client or transport not available",
+              details: nil
+          )))
+          return
+      }
+      
+      Task { @MainActor in
+          do {
+              try await muteRemoteParticipantAudio(transport: dailyTransport, muted: isMuted)
+              
+              // Update local state and notify Flutter
+              self.isBotAudioMuted = isMuted
+              self.inputStatusUpdatedHandler?.sendEvent(
+                  InputStatusUpdatedEvent(
+                      isCurrentMicrophoneEnabled: dailyTransport.isMicEnabled(),
+                      isCurrentCameraEnabled: dailyTransport.isCamEnabled(),
+                      isBotAudioMuted: isMuted
+                  )
+              )
+              
+              completion(.success(()))
+          } catch {
+              completion(.failure(PigeonError(
+                  code: "MUTE_ERROR",
+                  message: error.localizedDescription,
+                  details: nil
+              )))
+          }
+      }
   }
   
   // MARK: - PipecatClientDelegate
@@ -266,7 +278,8 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     inputStatusUpdatedHandler?.sendEvent(
       InputStatusUpdatedEvent(
         isCurrentMicrophoneEnabled: isEnabled,
-        isCurrentCameraEnabled: transport.isCamEnabled()
+        isCurrentCameraEnabled: transport.isCamEnabled(),
+        isBotAudioMuted: isBotAudioMuted,
       )
     )
   }
@@ -279,7 +292,8 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     inputStatusUpdatedHandler?.sendEvent(
       InputStatusUpdatedEvent(
         isCurrentMicrophoneEnabled: transport.isMicEnabled(),
-        isCurrentCameraEnabled: isEnabled
+        isCurrentCameraEnabled: isEnabled,
+        isBotAudioMuted: isBotAudioMuted,
       )
     )
   }
