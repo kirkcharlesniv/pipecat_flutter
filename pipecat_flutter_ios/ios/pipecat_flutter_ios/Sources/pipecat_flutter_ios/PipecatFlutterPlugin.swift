@@ -92,6 +92,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       DispatchQueue.main.async {
         switch result {
         case .success:
+          self.updateInputState()
           completion(.success(()))
         case .failure(let err):
           completion(.failure(err as Error))
@@ -124,6 +125,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     client?.enableMic(enable: isEnabled) { result in
       switch result {
       case .success:
+        self.updateInputState()
         completion(.success(()))
       case .failure(let error):
         completion(.failure(PigeonError(
@@ -142,6 +144,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     client?.enableCam(enable: isEnabled) { result in
       switch result {
       case .success:
+        self.updateInputState()
         completion(.success(()))
       case .failure(let error):
         completion(.failure(PigeonError(
@@ -193,13 +196,15 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   
   public func onConnected() {
     connectionStateHandler?.sendEvent(ConnectionStateEvent(state: .connected))
+    self.updateInputState()
   }
   
   public func onDisconnected() {
     connectionStateHandler?.sendEvent(ConnectionStateEvent(state: .disconnected))
+    self.updateInputState()
   }
   
-  public func onTransportStateChanged(state: PipecatClientIOS.TransportState) {
+  public func onTransportStateChanged(state: TransportState) {
     // Map TransportState to your ConnectionState if needed
     let connectionState: ConnectionState
     switch state {
@@ -214,6 +219,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
     
     connectionStateHandler?.sendEvent(ConnectionStateEvent(state: connectionState))
+    self.updateInputState()
   }
   
   public func onError(message: PipecatClientIOS.RTVIMessageInbound) {
@@ -284,15 +290,16 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     )
   }
   
-  public func onCamUpdated(cam: MediaDeviceInfo?) {
+  private func updateInputState() {
     guard let transport = client?.transport as? DailyTransport else { return }
       
-    let isEnabled = transport.isCamEnabled()
+    let isMicrophoneEnabled = transport.isMicEnabled()
+    let isCameraEnabled = transport.isCamEnabled()
     
     inputStatusUpdatedHandler?.sendEvent(
       InputStatusUpdatedEvent(
-        isCurrentMicrophoneEnabled: transport.isMicEnabled(),
-        isCurrentCameraEnabled: isEnabled,
+        isCurrentMicrophoneEnabled: isMicrophoneEnabled,
+        isCurrentCameraEnabled: isCameraEnabled,
         isBotAudioMuted: isBotAudioMuted,
       )
     )
