@@ -1,7 +1,6 @@
 name: pipecat_flutter_android
 description: Android implementation of the pipecat_flutter plugin
 version: 0.1.0+1
-publish_to: https://pub.dev
 repository: https://github.com/kirkcharlesniv/pipecat_flutter/tree/main/pipecat_flutter_android
 issue_tracker: https://github.com/kirkcharlesniv/pipecat_flutter/issues
 
