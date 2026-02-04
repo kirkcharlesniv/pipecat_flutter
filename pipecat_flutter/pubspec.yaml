@@ -19,12 +19,9 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  pipecat_flutter_android:
-    path: ../pipecat_flutter_android
-  pipecat_flutter_ios:
-    path: ../pipecat_flutter_ios
-  pipecat_flutter_platform_interface:
-    path: ../pipecat_flutter_platform_interface
+  pipecat_flutter_android: ^0.1.0
+  pipecat_flutter_ios: ^0.1.0
+  pipecat_flutter_platform_interface: ^0.1.0
 
 dev_dependencies:
   flutter_test:
