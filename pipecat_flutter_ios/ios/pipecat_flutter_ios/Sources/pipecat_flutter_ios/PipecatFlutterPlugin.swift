@@ -276,6 +276,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     eventStreamHandler?.sendEvent(ServerInsightEvent(type: .botTtsStopped))
   }
   
+//  public func onBotTranscript(data: PipecatClientIOS.BotLLMText) {
+//    eventStreamHandler?.sendEvent(BotTTSText(text: data.text))
+//  }
+  
   public func onMicUpdated(mic: MediaDeviceInfo?) {
     guard let transport = client?.transport as? DailyTransport else { return }
       

@@ -39,7 +39,7 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
   /// Uses the pigeon-generated [SpeakingEvent] stream
   Stream<SpeakingEvent> get speakingEventStream;
 
-  /// Uses the pigeon-generated [SpeakingEvent] stream
+  /// Uses the pigeon-generated [ConnectionStateEvent] stream
   Stream<ConnectionStateEvent> get connectionStateEventStream;
 
   /// Uses the pigeon-generated [InputStatusUpdatedEvent] stream
