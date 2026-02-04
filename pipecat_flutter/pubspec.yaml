@@ -2,6 +2,8 @@ name: pipecat_flutter
 description: Pipecat + Daily
 version: 0.1.0+1
 publish_to: none
+repository: https://github.com/kirkcharlesniv/pipecat_flutter/tree/main/pipecat_flutter
+issue_tracker: https://github.com/kirkcharlesniv/pipecat_flutter/issues
 
 environment:
   sdk: ^3.9.0
