@@ -117,6 +117,19 @@ class PipecatFlutter {
     return _platform.muteBotMicrophone(isMuted: isMuted);
   }
 
+  /// Send typed text input directly to the bot.
+  Future<void> sendText({
+    required String content,
+    bool? runImmediately,
+    bool? audioResponse,
+  }) {
+    return _platform.sendText(
+      content: content,
+      runImmediately: runImmediately,
+      audioResponse: audioResponse,
+    );
+  }
+
   /// Local user's microphone level (0.0 - 1.0)
   /// Updates at ~50-100ms intervals when connected
   Stream<double> get localAudioLevel =>

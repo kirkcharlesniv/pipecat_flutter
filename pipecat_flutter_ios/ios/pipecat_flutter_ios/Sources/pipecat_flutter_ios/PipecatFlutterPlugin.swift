@@ -157,39 +157,67 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
   
   func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
-      guard let client = client,
-            let dailyTransport = client.transport as? DailyTransport else {
-          completion(.failure(PigeonError(
-              code: "NO_CLIENT",
-              message: "Client or transport not available",
-              details: nil
-          )))
-          return
+    guard let client = client,
+          let dailyTransport = client.transport as? DailyTransport else {
+      completion(.failure(PigeonError(
+        code: "NO_CLIENT",
+        message: "Client or transport not available",
+        details: nil
+      )))
+      return
+    }
+
+    Task { @MainActor in
+      do {
+        try await muteRemoteParticipantAudio(transport: dailyTransport, muted: isMuted)
+
+        // Update local state and notify Flutter
+        self.isBotAudioMuted = isMuted
+        self.inputStatusUpdatedHandler?.sendEvent(
+          InputStatusUpdatedEvent(
+            isCurrentMicrophoneEnabled: dailyTransport.isMicEnabled(),
+            isCurrentCameraEnabled: dailyTransport.isCamEnabled(),
+            isBotAudioMuted: isMuted
+          )
+        )
+
+        completion(.success(()))
+      } catch {
+        completion(.failure(PigeonError(
+          code: "MUTE_ERROR",
+          message: error.localizedDescription,
+          details: nil
+        )))
       }
-      
-      Task { @MainActor in
-          do {
-              try await muteRemoteParticipantAudio(transport: dailyTransport, muted: isMuted)
-              
-              // Update local state and notify Flutter
-              self.isBotAudioMuted = isMuted
-              self.inputStatusUpdatedHandler?.sendEvent(
-                  InputStatusUpdatedEvent(
-                      isCurrentMicrophoneEnabled: dailyTransport.isMicEnabled(),
-                      isCurrentCameraEnabled: dailyTransport.isCamEnabled(),
-                      isBotAudioMuted: isMuted
-                  )
-              )
-              
-              completion(.success(()))
-          } catch {
-              completion(.failure(PigeonError(
-                  code: "MUTE_ERROR",
-                  message: error.localizedDescription,
-                  details: nil
-              )))
-          }
-      }
+    }
+  }
+
+  func sendText(parameters: SendTextParams, completion: @escaping (Result<Void, Error>) -> Void) {
+    guard let client = client else {
+      completion(.failure(PigeonError(
+        code: "NO_CLIENT",
+        message: "Client not available",
+        details: nil
+      )))
+      return
+    }
+
+    do {
+      try client.sendText(
+        content: parameters.content,
+        options: SendTextOptions(
+          runImmediately: parameters.runImmediately,
+          audioResponse: parameters.audioResponse
+        )
+      )
+      completion(.success(()))
+    } catch {
+      completion(.failure(PigeonError(
+        code: "SEND_TEXT_ERROR",
+        message: error.localizedDescription,
+        details: nil
+      )))
+    }
   }
   
   // MARK: - PipecatClientDelegate

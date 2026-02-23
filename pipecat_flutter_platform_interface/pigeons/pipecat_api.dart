@@ -54,6 +54,24 @@ class StartBotParams {
   final int? timeoutInMilliseconds;
 }
 
+/// Parameters for sending text input to the bot.
+class SendTextParams {
+  const SendTextParams({
+    required this.content,
+    this.runImmediately,
+    this.audioResponse,
+  });
+
+  /// Text content to send.
+  final String content;
+
+  /// Whether the bot should run this input immediately.
+  final bool? runImmediately;
+
+  /// Whether the bot should respond with audio.
+  final bool? audioResponse;
+}
+
 @HostApi()
 abstract class PipecatHostApi {
   /// Starts the session and connects to your transport
@@ -80,6 +98,10 @@ abstract class PipecatHostApi {
   void muteBotAudio({
     required bool isMuted,
   });
+
+  /// Send typed text input to the bot.
+  @async
+  void sendText(SendTextParams parameters);
 }
 
 // ==== EVENTS

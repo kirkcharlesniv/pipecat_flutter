@@ -19,6 +19,7 @@ import ai.pipecat.client.result.Result as PipecatResult
 import ai.pipecat.client.types.TransportState
 import ai.pipecat.client.types.Transcript
 import ai.pipecat.client.types.Participant
+import ai.pipecat.client.types.SendTextOptions
 import co.daily.model.MeetingToken
 import co.daily.model.RemoteInputsEnabledUpdate
 import co.daily.model.RemoteParticipantUpdate
@@ -256,6 +257,36 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                 code = "MUTE_ERROR",
                 message = e.localizedMessage ?: e.toString()
             )))
+        }
+    }
+
+    override fun sendText(parameters: SendTextParams, callback: (Result<Unit>) -> Unit) {
+        val currentClient = client ?: run {
+            callback(Result.failure(FlutterError(
+                code = "NO_CLIENT",
+                message = "Client not available"
+            )))
+            return
+        }
+
+        currentClient.sendText(
+            parameters.content,
+            SendTextOptions(
+                runImmediately = parameters.runImmediately,
+                audioResponse = parameters.audioResponse
+            )
+        ).withCallback { result ->
+            runOnMain {
+                when (result) {
+                    is PipecatResult.Ok -> callback(Result.success(Unit))
+                    is PipecatResult.Err -> {
+                        callback(Result.failure(FlutterError(
+                            code = "SEND_TEXT_ERROR",
+                            message = result.error.toString()
+                        )))
+                    }
+                }
+            }
         }
     }
 

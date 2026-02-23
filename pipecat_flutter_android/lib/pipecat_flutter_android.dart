@@ -50,6 +50,21 @@ class PipecatFlutterAndroid extends PipecatFlutterPlatform {
   }
 
   @override
+  Future<void> sendText({
+    required String content,
+    bool? runImmediately,
+    bool? audioResponse,
+  }) {
+    return _hostApi.sendText(
+      SendTextParams(
+        content: content,
+        runImmediately: runImmediately,
+        audioResponse: audioResponse,
+      ),
+    );
+  }
+
+  @override
   Stream<PipecatEvent> get eventStream {
     _eventStream ??= events();
     return _eventStream!;

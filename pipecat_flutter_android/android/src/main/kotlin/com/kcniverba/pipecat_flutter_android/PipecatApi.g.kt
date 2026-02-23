@@ -185,6 +185,47 @@ data class StartBotParams (
 }
 
 /**
+ * Parameters for sending text input to the bot.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SendTextParams (
+  /** Text content to send. */
+  val content: String,
+  /** Whether the bot should run this input immediately. */
+  val runImmediately: Boolean? = null,
+  /** Whether the bot should respond with audio. */
+  val audioResponse: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SendTextParams {
+      val content = pigeonVar_list[0] as String
+      val runImmediately = pigeonVar_list[1] as Boolean?
+      val audioResponse = pigeonVar_list[2] as Boolean?
+      return SendTextParams(content, runImmediately, audioResponse)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      content,
+      runImmediately,
+      audioResponse,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is SendTextParams) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
  * Events that the client receives on a session
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -598,55 +639,60 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionStateEvent.fromList(it)
+          SendTextParams.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BackendErrorEvent.fromList(it)
+          ConnectionStateEvent.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UserTranscriptionEvent.fromList(it)
+          BackendErrorEvent.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotOutputEvent.fromList(it)
+          UserTranscriptionEvent.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpeakingEvent.fromList(it)
+          BotOutputEvent.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ServerInsightEvent.fromList(it)
+          SpeakingEvent.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UserLLMText.fromList(it)
+          ServerInsightEvent.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotLLMText.fromList(it)
+          UserLLMText.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AudioLevel.fromList(it)
+          BotLLMText.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotTTSText.fromList(it)
+          AudioLevel.fromList(it)
         }
       }
       143.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BotTTSText.fromList(it)
+        }
+      }
+      144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           InputStatusUpdatedEvent.fromList(it)
         }
@@ -672,48 +718,52 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is ConnectionStateEvent -> {
+      is SendTextParams -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is BackendErrorEvent -> {
+      is ConnectionStateEvent -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is UserTranscriptionEvent -> {
+      is BackendErrorEvent -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is BotOutputEvent -> {
+      is UserTranscriptionEvent -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is SpeakingEvent -> {
+      is BotOutputEvent -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is ServerInsightEvent -> {
+      is SpeakingEvent -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is UserLLMText -> {
+      is ServerInsightEvent -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is BotLLMText -> {
+      is UserLLMText -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is AudioLevel -> {
+      is BotLLMText -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is BotTTSText -> {
+      is AudioLevel -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is InputStatusUpdatedEvent -> {
+      is BotTTSText -> {
         stream.write(143)
+        writeValue(stream, value.toList())
+      }
+      is InputStatusUpdatedEvent -> {
+        stream.write(144)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -735,6 +785,8 @@ interface PipecatHostApi {
   /** Toggle your camera */
   fun toggleCamera(isEnabled: Boolean, callback: (Result<Unit>) -> Unit)
   fun muteBotAudio(isMuted: Boolean, callback: (Result<Unit>) -> Unit)
+  /** Send typed text input to the bot. */
+  fun sendText(parameters: SendTextParams, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by PipecatHostApi. */
@@ -826,6 +878,25 @@ interface PipecatHostApi {
             val args = message as List<Any?>
             val isMutedArg = args[0] as Boolean
             api.muteBotAudio(isMutedArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PipecatApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(PipecatApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendText$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val parametersArg = args[0] as SendTextParams
+            api.sendText(parametersArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(PipecatApiPigeonUtils.wrapError(error))

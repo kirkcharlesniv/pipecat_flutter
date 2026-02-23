@@ -137,6 +137,61 @@ class StartBotParams {
 ;
 }
 
+/// Parameters for sending text input to the bot.
+class SendTextParams {
+  SendTextParams({
+    required this.content,
+    this.runImmediately,
+    this.audioResponse,
+  });
+
+  /// Text content to send.
+  String content;
+
+  /// Whether the bot should run this input immediately.
+  bool? runImmediately;
+
+  /// Whether the bot should respond with audio.
+  bool? audioResponse;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      content,
+      runImmediately,
+      audioResponse,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SendTextParams decode(Object result) {
+    result as List<Object?>;
+    return SendTextParams(
+      content: result[0]! as String,
+      runImmediately: result[1] as bool?,
+      audioResponse: result[2] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SendTextParams || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 /// Events that the client receives on a session
 sealed class PipecatEvent {
 }
@@ -675,38 +730,41 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is StartBotParams) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is ConnectionStateEvent) {
+    }    else if (value is SendTextParams) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is BackendErrorEvent) {
+    }    else if (value is ConnectionStateEvent) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is UserTranscriptionEvent) {
+    }    else if (value is BackendErrorEvent) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is BotOutputEvent) {
+    }    else if (value is UserTranscriptionEvent) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakingEvent) {
+    }    else if (value is BotOutputEvent) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is ServerInsightEvent) {
+    }    else if (value is SpeakingEvent) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is UserLLMText) {
+    }    else if (value is ServerInsightEvent) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is BotLLMText) {
+    }    else if (value is UserLLMText) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioLevel) {
+    }    else if (value is BotLLMText) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is BotTTSText) {
+    }    else if (value is AudioLevel) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is InputStatusUpdatedEvent) {
+    }    else if (value is BotTTSText) {
       buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is InputStatusUpdatedEvent) {
+      buffer.putUint8(144);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -728,26 +786,28 @@ class _PigeonCodec extends StandardMessageCodec {
       case 132: 
         return StartBotParams.decode(readValue(buffer)!);
       case 133: 
-        return ConnectionStateEvent.decode(readValue(buffer)!);
+        return SendTextParams.decode(readValue(buffer)!);
       case 134: 
-        return BackendErrorEvent.decode(readValue(buffer)!);
+        return ConnectionStateEvent.decode(readValue(buffer)!);
       case 135: 
-        return UserTranscriptionEvent.decode(readValue(buffer)!);
+        return BackendErrorEvent.decode(readValue(buffer)!);
       case 136: 
-        return BotOutputEvent.decode(readValue(buffer)!);
+        return UserTranscriptionEvent.decode(readValue(buffer)!);
       case 137: 
-        return SpeakingEvent.decode(readValue(buffer)!);
+        return BotOutputEvent.decode(readValue(buffer)!);
       case 138: 
-        return ServerInsightEvent.decode(readValue(buffer)!);
+        return SpeakingEvent.decode(readValue(buffer)!);
       case 139: 
-        return UserLLMText.decode(readValue(buffer)!);
+        return ServerInsightEvent.decode(readValue(buffer)!);
       case 140: 
-        return BotLLMText.decode(readValue(buffer)!);
+        return UserLLMText.decode(readValue(buffer)!);
       case 141: 
-        return AudioLevel.decode(readValue(buffer)!);
+        return BotLLMText.decode(readValue(buffer)!);
       case 142: 
-        return BotTTSText.decode(readValue(buffer)!);
+        return AudioLevel.decode(readValue(buffer)!);
       case 143: 
+        return BotTTSText.decode(readValue(buffer)!);
+      case 144: 
         return InputStatusUpdatedEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -870,6 +930,29 @@ class PipecatHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[isMuted]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Send typed text input to the bot.
+  Future<void> sendText(SendTextParams parameters) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendText$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);

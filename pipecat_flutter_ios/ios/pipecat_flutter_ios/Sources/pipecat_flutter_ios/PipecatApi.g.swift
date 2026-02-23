@@ -215,6 +215,44 @@ struct StartBotParams: Hashable {
   }
 }
 
+/// Parameters for sending text input to the bot.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct SendTextParams: Hashable {
+  /// Text content to send.
+  var content: String
+  /// Whether the bot should run this input immediately.
+  var runImmediately: Bool? = nil
+  /// Whether the bot should respond with audio.
+  var audioResponse: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SendTextParams? {
+    let content = pigeonVar_list[0] as! String
+    let runImmediately: Bool? = nilOrValue(pigeonVar_list[1])
+    let audioResponse: Bool? = nilOrValue(pigeonVar_list[2])
+
+    return SendTextParams(
+      content: content,
+      runImmediately: runImmediately,
+      audioResponse: audioResponse
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      content,
+      runImmediately,
+      audioResponse,
+    ]
+  }
+  static func == (lhs: SendTextParams, rhs: SendTextParams) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
 /// Events that the client receives on a session
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -586,26 +624,28 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
     case 132:
       return StartBotParams.fromList(self.readValue() as! [Any?])
     case 133:
-      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
+      return SendTextParams.fromList(self.readValue() as! [Any?])
     case 134:
-      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
+      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
     case 135:
-      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
+      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
     case 136:
-      return BotOutputEvent.fromList(self.readValue() as! [Any?])
+      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
     case 137:
-      return SpeakingEvent.fromList(self.readValue() as! [Any?])
+      return BotOutputEvent.fromList(self.readValue() as! [Any?])
     case 138:
-      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
+      return SpeakingEvent.fromList(self.readValue() as! [Any?])
     case 139:
-      return UserLLMText.fromList(self.readValue() as! [Any?])
+      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
     case 140:
-      return BotLLMText.fromList(self.readValue() as! [Any?])
+      return UserLLMText.fromList(self.readValue() as! [Any?])
     case 141:
-      return AudioLevel.fromList(self.readValue() as! [Any?])
+      return BotLLMText.fromList(self.readValue() as! [Any?])
     case 142:
-      return BotTTSText.fromList(self.readValue() as! [Any?])
+      return AudioLevel.fromList(self.readValue() as! [Any?])
     case 143:
+      return BotTTSText.fromList(self.readValue() as! [Any?])
+    case 144:
       return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -627,38 +667,41 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? StartBotParams {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionStateEvent {
+    } else if let value = value as? SendTextParams {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? BackendErrorEvent {
+    } else if let value = value as? ConnectionStateEvent {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? UserTranscriptionEvent {
+    } else if let value = value as? BackendErrorEvent {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? BotOutputEvent {
+    } else if let value = value as? UserTranscriptionEvent {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakingEvent {
+    } else if let value = value as? BotOutputEvent {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerInsightEvent {
+    } else if let value = value as? SpeakingEvent {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? UserLLMText {
+    } else if let value = value as? ServerInsightEvent {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? BotLLMText {
+    } else if let value = value as? UserLLMText {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioLevel {
+    } else if let value = value as? BotLLMText {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? BotTTSText {
+    } else if let value = value as? AudioLevel {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? InputStatusUpdatedEvent {
+    } else if let value = value as? BotTTSText {
       super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? InputStatusUpdatedEvent {
+      super.writeByte(144)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -696,6 +739,8 @@ protocol PipecatHostApi {
   /// Toggle your camera
   func toggleCamera(isEnabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Send typed text input to the bot.
+  func sendText(parameters: SendTextParams, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -790,6 +835,24 @@ class PipecatHostApiSetup {
       }
     } else {
       muteBotAudioChannel.setMessageHandler(nil)
+    }
+    /// Send typed text input to the bot.
+    let sendTextChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendText\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      sendTextChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let parametersArg = args[0] as! SendTextParams
+        api.sendText(parameters: parametersArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      sendTextChannel.setMessageHandler(nil)
     }
   }
 }

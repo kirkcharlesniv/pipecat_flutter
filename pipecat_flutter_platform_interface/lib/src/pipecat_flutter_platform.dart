@@ -59,6 +59,13 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
 
   /// Unsubscribes to the microphone stream of the bot
   Future<void> muteBotMicrophone({required bool isMuted});
+
+  /// Send text input directly to the bot.
+  Future<void> sendText({
+    required String content,
+    bool? runImmediately,
+    bool? audioResponse,
+  });
 }
 
 /// Default implementation using Pigeon-generated code
@@ -103,6 +110,15 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
       throw UnimplementedError(
         'muteBotMicrophone has not been implemented for this platform.',
       );
+
+  @override
+  Future<void> sendText({
+    required String content,
+    bool? runImmediately,
+    bool? audioResponse,
+  }) => throw UnimplementedError(
+    'sendText has not been implemented for this platform.',
+  );
 
   @override
   Stream<AudioLevel> get localAudioLevelStream => throw UnimplementedError(
