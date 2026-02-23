@@ -1,3 +1,7 @@
+## 0.2.0+3
+
+- Update `pipecat_flutter_platform_interface` dependency constraint to `^0.2.0`.
+
 ## 0.2.0+2
 
 - Integrate `sendText`
