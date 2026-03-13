@@ -14,20 +14,24 @@ PlatformException _createConnectionError(String channelName) {
     message: 'Unable to establish connection on channel: "$channelName".',
   );
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
-
 
 enum ConnectionState {
   connecting,
@@ -38,10 +42,13 @@ enum ConnectionState {
 enum SpeakingState {
   /// Emitted when the user begins speaking
   userStartedSpeaking,
+
   /// Emitted when the user stops speaking
   userStoppedSpeaking,
+
   /// Emitted when the bot begins speaking
   botStartedSpeaking,
+
   /// Emitted when the bot stops speaking
   botStoppedSpeaking,
 }
@@ -51,6 +58,11 @@ enum InsightType {
   botLlmStopped,
   botTtsStarted,
   botTtsStopped,
+}
+
+enum BotConnectionState {
+  connected,
+  disconnected,
 }
 
 /// Parameters for starting the bot and connecting
@@ -104,7 +116,8 @@ class StartBotParams {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StartBotParams decode(Object result) {
     result as List<Object?>;
@@ -133,8 +146,7 @@ class StartBotParams {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Parameters for sending text input to the bot.
@@ -163,7 +175,8 @@ class SendTextParams {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static SendTextParams decode(Object result) {
     result as List<Object?>;
@@ -188,16 +201,14 @@ class SendTextParams {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
-/// Events that the client receives on a session
-sealed class PipecatEvent {
-}
+/// Events that the client receives on a session.
+sealed class PipecatEvent {}
 
 /// Emitted when there's a change in the connection state.
-class ConnectionStateEvent {
+class ConnectionStateEvent extends PipecatEvent {
   ConnectionStateEvent({
     required this.state,
   });
@@ -211,7 +222,8 @@ class ConnectionStateEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ConnectionStateEvent decode(Object result) {
     result as List<Object?>;
@@ -234,8 +246,7 @@ class ConnectionStateEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Emitted when there's a problem connecting or during
@@ -254,7 +265,8 @@ class BackendErrorEvent extends PipecatEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BackendErrorEvent decode(Object result) {
     result as List<Object?>;
@@ -277,13 +289,12 @@ class BackendErrorEvent extends PipecatEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Real-time transcription of user speech,
 /// including both partial and final results.
-class UserTranscriptionEvent {
+class UserTranscriptionEvent extends PipecatEvent {
   UserTranscriptionEvent({
     required this.text,
     required this.isFinal,
@@ -309,7 +320,8 @@ class UserTranscriptionEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UserTranscriptionEvent decode(Object result) {
     result as List<Object?>;
@@ -335,19 +347,12 @@ class UserTranscriptionEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
-/// The best-effort representation of the bot’s output text, including both
-/// spoken and unspoken text. In addition to transcriptions of spoken text,
-/// this message type may also include text that the bot outputs but does
-/// not speak (e.g., text sent to the client for display purposes only).
-///
-/// Along with the text, this event includes a spoken flag to indicate whether
-/// the text was spoken by the bot or not and an aggregated_by field to indicate
-/// what the text represents (e.g. “sentence”, “word”, “code”, “url”).
-class BotOutputEvent {
+/// The best-effort representation of the bot's output text, including both
+/// spoken and unspoken text.
+class BotOutputEvent extends PipecatEvent {
   BotOutputEvent({
     required this.text,
     required this.isSpoken,
@@ -360,12 +365,7 @@ class BotOutputEvent {
   /// Indicates if this text was spoken by the bot.
   bool isSpoken;
 
-  /// Indicates how the text was aggregated
-  /// (e.g., “sentence”, “word”, “code”, “url”).
-  ///
-  /// “sentence” and “word” are reserved aggregation types defined
-  /// by the RTVI standard. Other aggregation types may be defined
-  /// by custom text aggregators used by the server.
+  /// Indicates how the text was aggregated.
   String aggregatedBy;
 
   List<Object?> _toList() {
@@ -377,7 +377,8 @@ class BotOutputEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BotOutputEvent decode(Object result) {
     result as List<Object?>;
@@ -402,11 +403,10 @@ class BotOutputEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
-class SpeakingEvent {
+class SpeakingEvent extends PipecatEvent {
   SpeakingEvent({
     required this.state,
   });
@@ -420,7 +420,8 @@ class SpeakingEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static SpeakingEvent decode(Object result) {
     result as List<Object?>;
@@ -443,8 +444,7 @@ class SpeakingEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class ServerInsightEvent extends PipecatEvent {
@@ -461,7 +461,8 @@ class ServerInsightEvent extends PipecatEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ServerInsightEvent decode(Object result) {
     result as List<Object?>;
@@ -484,8 +485,7 @@ class ServerInsightEvent extends PipecatEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Aggregated user input text that is sent to the LLM.
@@ -503,7 +503,8 @@ class UserLLMText extends PipecatEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UserLLMText decode(Object result) {
     result as List<Object?>;
@@ -526,8 +527,7 @@ class UserLLMText extends PipecatEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Individual tokens streamed from the LLM as they are generated.
@@ -545,7 +545,8 @@ class BotLLMText extends PipecatEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BotLLMText decode(Object result) {
     result as List<Object?>;
@@ -568,52 +569,7 @@ class BotLLMText extends PipecatEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
-}
-
-/// Audio level data for visualizers
-/// Sent at high frequency (~50-100ms intervals)
-class AudioLevel {
-  AudioLevel({
-    required this.level,
-  });
-
-  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
-  double level;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      level,
-    ];
-  }
-
-  Object encode() {
-    return _toList();  }
-
-  static AudioLevel decode(Object result) {
-    result as List<Object?>;
-    return AudioLevel(
-      level: result[0]! as double,
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! AudioLevel || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return _deepEquals(encode(), other.encode());
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// The per-token text output of the text-to-speech (TTS) service
@@ -632,7 +588,8 @@ class BotTTSText extends PipecatEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BotTTSText decode(Object result) {
     result as List<Object?>;
@@ -655,11 +612,10 @@ class BotTTSText extends PipecatEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
-class InputStatusUpdatedEvent {
+class InputStatusUpdatedEvent extends PipecatEvent {
   InputStatusUpdatedEvent({
     required this.isCurrentMicrophoneEnabled,
     required this.isCurrentCameraEnabled,
@@ -681,7 +637,8 @@ class InputStatusUpdatedEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static InputStatusUpdatedEvent decode(Object result) {
     result as List<Object?>;
@@ -706,10 +663,345 @@ class InputStatusUpdatedEvent {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
+class BotConnectionEvent extends PipecatEvent {
+  BotConnectionEvent({
+    required this.state,
+    required this.participantId,
+    this.participantName,
+  });
+
+  BotConnectionState state;
+
+  String participantId;
+
+  String? participantName;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      state,
+      participantId,
+      participantName,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static BotConnectionEvent decode(Object result) {
+    result as List<Object?>;
+    return BotConnectionEvent(
+      state: result[0]! as BotConnectionState,
+      participantId: result[1]! as String,
+      participantName: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BotConnectionEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class BotReadyEvent extends PipecatEvent {
+  BotReadyEvent({
+    required this.version,
+    this.aboutJson,
+  });
+
+  String version;
+
+  String? aboutJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      version,
+      aboutJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static BotReadyEvent decode(Object result) {
+    result as List<Object?>;
+    return BotReadyEvent(
+      version: result[0]! as String,
+      aboutJson: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BotReadyEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class ServerMessageEvent extends PipecatEvent {
+  ServerMessageEvent({
+    required this.rawJson,
+  });
+
+  /// Deterministically-serialized JSON payload from RTVI server-message data.
+  String rawJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      rawJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static ServerMessageEvent decode(Object result) {
+    result as List<Object?>;
+    return ServerMessageEvent(
+      rawJson: result[0]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ServerMessageEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class PipecatMetricSample {
+  PipecatMetricSample({
+    required this.processor,
+    required this.value,
+  });
+
+  String processor;
+
+  double value;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      processor,
+      value,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static PipecatMetricSample decode(Object result) {
+    result as List<Object?>;
+    return PipecatMetricSample(
+      processor: result[0]! as String,
+      value: result[1]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PipecatMetricSample || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class MetricsEvent extends PipecatEvent {
+  MetricsEvent({
+    this.processing,
+    this.ttfb,
+    this.rawJson,
+  });
+
+  List<PipecatMetricSample>? processing;
+
+  List<PipecatMetricSample>? ttfb;
+
+  /// Deterministically-serialized full metrics payload.
+  String? rawJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      processing,
+      ttfb,
+      rawJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MetricsEvent decode(Object result) {
+    result as List<Object?>;
+    return MetricsEvent(
+      processing: (result[0] as List<Object?>?)?.cast<PipecatMetricSample>(),
+      ttfb: (result[1] as List<Object?>?)?.cast<PipecatMetricSample>(),
+      rawJson: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MetricsEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class TimelineEvent {
+  TimelineEvent({
+    required this.sequence,
+    required this.sessionEpoch,
+    required this.emittedAtMs,
+    required this.event,
+  });
+
+  int sequence;
+
+  int sessionEpoch;
+
+  int emittedAtMs;
+
+  PipecatEvent event;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      sequence,
+      sessionEpoch,
+      emittedAtMs,
+      event,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static TimelineEvent decode(Object result) {
+    result as List<Object?>;
+    return TimelineEvent(
+      sequence: result[0]! as int,
+      sessionEpoch: result[1]! as int,
+      emittedAtMs: result[2]! as int,
+      event: result[3]! as PipecatEvent,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TimelineEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+/// Audio level data for visualizers.
+/// Sent at high frequency (~50-100ms intervals).
+class AudioLevel {
+  AudioLevel({
+    required this.level,
+  });
+
+  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
+  double level;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      level,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AudioLevel decode(Object result) {
+    result as List<Object?>;
+    return AudioLevel(
+      level: result[0]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AudioLevel || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -718,53 +1010,74 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ConnectionState) {
+    } else if (value is ConnectionState) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is SpeakingState) {
+    } else if (value is SpeakingState) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is InsightType) {
+    } else if (value is InsightType) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is StartBotParams) {
+    } else if (value is BotConnectionState) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    }    else if (value is SendTextParams) {
+      writeValue(buffer, value.index);
+    } else if (value is StartBotParams) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is ConnectionStateEvent) {
+    } else if (value is SendTextParams) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is BackendErrorEvent) {
+    } else if (value is ConnectionStateEvent) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is UserTranscriptionEvent) {
+    } else if (value is BackendErrorEvent) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is BotOutputEvent) {
+    } else if (value is UserTranscriptionEvent) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakingEvent) {
+    } else if (value is BotOutputEvent) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is ServerInsightEvent) {
+    } else if (value is SpeakingEvent) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is UserLLMText) {
+    } else if (value is ServerInsightEvent) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is BotLLMText) {
+    } else if (value is UserLLMText) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioLevel) {
+    } else if (value is BotLLMText) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is BotTTSText) {
+    } else if (value is BotTTSText) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is InputStatusUpdatedEvent) {
+    } else if (value is InputStatusUpdatedEvent) {
       buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    } else if (value is BotConnectionEvent) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    } else if (value is BotReadyEvent) {
+      buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    } else if (value is ServerMessageEvent) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    } else if (value is PipecatMetricSample) {
+      buffer.putUint8(148);
+      writeValue(buffer, value.encode());
+    } else if (value is MetricsEvent) {
+      buffer.putUint8(149);
+      writeValue(buffer, value.encode());
+    } else if (value is TimelineEvent) {
+      buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    } else if (value is AudioLevel) {
+      buffer.putUint8(151);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -774,56 +1087,77 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         final value = readValue(buffer) as int?;
         return value == null ? null : ConnectionState.values[value];
-      case 130: 
+      case 130:
         final value = readValue(buffer) as int?;
         return value == null ? null : SpeakingState.values[value];
-      case 131: 
+      case 131:
         final value = readValue(buffer) as int?;
         return value == null ? null : InsightType.values[value];
-      case 132: 
+      case 132:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : BotConnectionState.values[value];
+      case 133:
         return StartBotParams.decode(readValue(buffer)!);
-      case 133: 
+      case 134:
         return SendTextParams.decode(readValue(buffer)!);
-      case 134: 
+      case 135:
         return ConnectionStateEvent.decode(readValue(buffer)!);
-      case 135: 
+      case 136:
         return BackendErrorEvent.decode(readValue(buffer)!);
-      case 136: 
+      case 137:
         return UserTranscriptionEvent.decode(readValue(buffer)!);
-      case 137: 
+      case 138:
         return BotOutputEvent.decode(readValue(buffer)!);
-      case 138: 
+      case 139:
         return SpeakingEvent.decode(readValue(buffer)!);
-      case 139: 
+      case 140:
         return ServerInsightEvent.decode(readValue(buffer)!);
-      case 140: 
+      case 141:
         return UserLLMText.decode(readValue(buffer)!);
-      case 141: 
+      case 142:
         return BotLLMText.decode(readValue(buffer)!);
-      case 142: 
-        return AudioLevel.decode(readValue(buffer)!);
-      case 143: 
+      case 143:
         return BotTTSText.decode(readValue(buffer)!);
-      case 144: 
+      case 144:
         return InputStatusUpdatedEvent.decode(readValue(buffer)!);
+      case 145:
+        return BotConnectionEvent.decode(readValue(buffer)!);
+      case 146:
+        return BotReadyEvent.decode(readValue(buffer)!);
+      case 147:
+        return ServerMessageEvent.decode(readValue(buffer)!);
+      case 148:
+        return PipecatMetricSample.decode(readValue(buffer)!);
+      case 149:
+        return MetricsEvent.decode(readValue(buffer)!);
+      case 150:
+        return TimelineEvent.decode(readValue(buffer)!);
+      case 151:
+        return AudioLevel.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class PipecatHostApi {
   /// Constructor for [PipecatHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  PipecatHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  PipecatHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -832,13 +1166,16 @@ class PipecatHostApi {
 
   /// Starts the session and connects to your transport
   Future<void> startAndConnect(StartBotParams parameters) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.startAndConnect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.startAndConnect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[parameters],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -855,7 +1192,8 @@ class PipecatHostApi {
 
   /// Acts as a dispose too
   Future<void> disconnect() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.disconnect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.disconnect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -878,13 +1216,16 @@ class PipecatHostApi {
 
   /// Toggle your microphone
   Future<void> toggleMicrophone({required bool isEnabled}) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.toggleMicrophone$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.toggleMicrophone$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[isEnabled]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[isEnabled],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -901,13 +1242,16 @@ class PipecatHostApi {
 
   /// Toggle your camera
   Future<void> toggleCamera({required bool isEnabled}) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.toggleCamera$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.toggleCamera$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[isEnabled]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[isEnabled],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -923,13 +1267,16 @@ class PipecatHostApi {
   }
 
   Future<void> muteBotAudio({required bool isMuted}) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[isMuted]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[isMuted],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -946,13 +1293,16 @@ class PipecatHostApi {
 
   /// Send typed text input to the bot.
   Future<void> sendText(SendTextParams parameters) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendText$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendText$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[parameters],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -968,91 +1318,41 @@ class PipecatHostApi {
   }
 }
 
-Stream<PipecatEvent> events( {String instanceName = ''}) {
+Stream<TimelineEvent> timelineEvents({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel eventsChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.events$instanceName', pigeonMethodCodec);
-  return eventsChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as PipecatEvent;
+  final EventChannel timelineEventsChannel = EventChannel(
+    'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.timelineEvents$instanceName',
+    pigeonMethodCodec,
+  );
+  return timelineEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as TimelineEvent;
   });
 }
-    
-Stream<AudioLevel> localAudioLevel( {String instanceName = ''}) {
+
+Stream<AudioLevel> localAudioLevel({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel localAudioLevelChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.localAudioLevel$instanceName', pigeonMethodCodec);
+  final EventChannel localAudioLevelChannel = EventChannel(
+    'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.localAudioLevel$instanceName',
+    pigeonMethodCodec,
+  );
   return localAudioLevelChannel.receiveBroadcastStream().map((dynamic event) {
     return event as AudioLevel;
   });
 }
-    
-Stream<AudioLevel> remoteAudioLevel( {String instanceName = ''}) {
+
+Stream<AudioLevel> remoteAudioLevel({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel remoteAudioLevelChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.remoteAudioLevel$instanceName', pigeonMethodCodec);
+  final EventChannel remoteAudioLevelChannel = EventChannel(
+    'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.remoteAudioLevel$instanceName',
+    pigeonMethodCodec,
+  );
   return remoteAudioLevelChannel.receiveBroadcastStream().map((dynamic event) {
     return event as AudioLevel;
   });
 }
-    
-Stream<BotOutputEvent> botOutput( {String instanceName = ''}) {
-  if (instanceName.isNotEmpty) {
-    instanceName = '.$instanceName';
-  }
-  final EventChannel botOutputChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.botOutput$instanceName', pigeonMethodCodec);
-  return botOutputChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as BotOutputEvent;
-  });
-}
-    
-Stream<UserTranscriptionEvent> userTranscriptions( {String instanceName = ''}) {
-  if (instanceName.isNotEmpty) {
-    instanceName = '.$instanceName';
-  }
-  final EventChannel userTranscriptionsChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.userTranscriptions$instanceName', pigeonMethodCodec);
-  return userTranscriptionsChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as UserTranscriptionEvent;
-  });
-}
-    
-Stream<SpeakingEvent> speakingEvents( {String instanceName = ''}) {
-  if (instanceName.isNotEmpty) {
-    instanceName = '.$instanceName';
-  }
-  final EventChannel speakingEventsChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.speakingEvents$instanceName', pigeonMethodCodec);
-  return speakingEventsChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as SpeakingEvent;
-  });
-}
-    
-Stream<ConnectionStateEvent> connectionStateEvents( {String instanceName = ''}) {
-  if (instanceName.isNotEmpty) {
-    instanceName = '.$instanceName';
-  }
-  final EventChannel connectionStateEventsChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.connectionStateEvents$instanceName', pigeonMethodCodec);
-  return connectionStateEventsChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as ConnectionStateEvent;
-  });
-}
-    
-Stream<InputStatusUpdatedEvent> inputStatusEvents( {String instanceName = ''}) {
-  if (instanceName.isNotEmpty) {
-    instanceName = '.$instanceName';
-  }
-  final EventChannel inputStatusEventsChannel =
-      EventChannel('dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.inputStatusEvents$instanceName', pigeonMethodCodec);
-  return inputStatusEventsChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as InputStatusUpdatedEvent;
-  });
-}
-    

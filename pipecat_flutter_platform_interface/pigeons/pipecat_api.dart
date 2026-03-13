@@ -105,7 +105,7 @@ abstract class PipecatHostApi {
 }
 
 // ==== EVENTS
-/// Events that the client receives on a session
+/// Events that the client receives on a session.
 sealed class PipecatEvent {}
 
 enum ConnectionState {
@@ -115,7 +115,7 @@ enum ConnectionState {
 }
 
 /// Emitted when there's a change in the connection state.
-final class ConnectionStateEvent {
+final class ConnectionStateEvent extends PipecatEvent {
   ConnectionStateEvent({required this.state});
 
   final ConnectionState state;
@@ -129,11 +129,9 @@ final class BackendErrorEvent extends PipecatEvent {
   final String message;
 }
 
-// ---- Transcription
-
 /// Real-time transcription of user speech,
 /// including both partial and final results.
-final class UserTranscriptionEvent {
+final class UserTranscriptionEvent extends PipecatEvent {
   UserTranscriptionEvent({
     required this.text,
     required this.isFinal,
@@ -147,15 +145,9 @@ final class UserTranscriptionEvent {
   final String userId;
 }
 
-/// The best-effort representation of the bot’s output text, including both
-/// spoken and unspoken text. In addition to transcriptions of spoken text,
-/// this message type may also include text that the bot outputs but does
-/// not speak (e.g., text sent to the client for display purposes only).
-///
-/// Along with the text, this event includes a spoken flag to indicate whether
-/// the text was spoken by the bot or not and an aggregated_by field to indicate
-/// what the text represents (e.g. “sentence”, “word”, “code”, “url”).
-final class BotOutputEvent {
+/// The best-effort representation of the bot's output text, including both
+/// spoken and unspoken text.
+final class BotOutputEvent extends PipecatEvent {
   BotOutputEvent({
     required this.text,
     required this.isSpoken,
@@ -168,12 +160,7 @@ final class BotOutputEvent {
   /// Indicates if this text was spoken by the bot.
   final bool isSpoken;
 
-  /// Indicates how the text was aggregated
-  /// (e.g., “sentence”, “word”, “code”, “url”).
-  ///
-  /// “sentence” and “word” are reserved aggregation types defined
-  /// by the RTVI standard. Other aggregation types may be defined
-  /// by custom text aggregators used by the server.
+  /// Indicates how the text was aggregated.
   final String aggregatedBy;
 }
 
@@ -191,7 +178,7 @@ enum SpeakingState {
   botStoppedSpeaking,
 }
 
-final class SpeakingEvent {
+final class SpeakingEvent extends PipecatEvent {
   SpeakingEvent({required this.state});
 
   final SpeakingState state;
@@ -226,15 +213,6 @@ final class BotLLMText extends PipecatEvent {
   final String text;
 }
 
-/// Audio level data for visualizers
-/// Sent at high frequency (~50-100ms intervals)
-class AudioLevel {
-  AudioLevel({required this.level});
-
-  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
-  final double level;
-}
-
 /// The per-token text output of the text-to-speech (TTS) service
 /// (what the TTS actually says).
 final class BotTTSText extends PipecatEvent {
@@ -243,7 +221,7 @@ final class BotTTSText extends PipecatEvent {
   final String text;
 }
 
-final class InputStatusUpdatedEvent {
+final class InputStatusUpdatedEvent extends PipecatEvent {
   InputStatusUpdatedEvent({
     required this.isCurrentMicrophoneEnabled,
     required this.isCurrentCameraEnabled,
@@ -255,37 +233,84 @@ final class InputStatusUpdatedEvent {
   final bool isBotAudioMuted;
 }
 
+enum BotConnectionState { connected, disconnected }
+
+final class BotConnectionEvent extends PipecatEvent {
+  BotConnectionEvent({
+    required this.state,
+    required this.participantId,
+    this.participantName,
+  });
+
+  final BotConnectionState state;
+  final String participantId;
+  final String? participantName;
+}
+
+final class BotReadyEvent extends PipecatEvent {
+  BotReadyEvent({required this.version, this.aboutJson});
+
+  final String version;
+  final String? aboutJson;
+}
+
+final class ServerMessageEvent extends PipecatEvent {
+  ServerMessageEvent({required this.rawJson});
+
+  /// Deterministically-serialized JSON payload from RTVI server-message data.
+  final String rawJson;
+}
+
+final class PipecatMetricSample {
+  PipecatMetricSample({required this.processor, required this.value});
+
+  final String processor;
+  final double value;
+}
+
+final class MetricsEvent extends PipecatEvent {
+  MetricsEvent({this.processing, this.ttfb, this.rawJson});
+
+  final List<PipecatMetricSample>? processing;
+  final List<PipecatMetricSample>? ttfb;
+
+  /// Deterministically-serialized full metrics payload.
+  final String? rawJson;
+}
+
+final class TimelineEvent {
+  TimelineEvent({
+    required this.sequence,
+    required this.sessionEpoch,
+    required this.emittedAtMs,
+    required this.event,
+  });
+
+  final int sequence;
+  final int sessionEpoch;
+  final int emittedAtMs;
+  final PipecatEvent event;
+}
+
+/// Audio level data for visualizers.
+/// Sent at high frequency (~50-100ms intervals).
+class AudioLevel {
+  AudioLevel({required this.level});
+
+  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
+  final double level;
+}
+
 @EventChannelApi()
 abstract class PipecatEventStreamApi {
-  /// Session events
-  PipecatEvent events();
+  /// Canonical ordered timeline of session events.
+  TimelineEvent timelineEvents();
 
   /// Local user's microphone audio level (0.0 - 1.0)
-  /// High frequency (~50-100ms), use for visualizers
+  /// High frequency (~50-100ms), use for visualizers.
   AudioLevel localAudioLevel();
 
   /// Remote participant's (bot) audio level (0.0 - 1.0)
-  /// High frequency (~50-100ms), use for visualizers
+  /// High frequency (~50-100ms), use for visualizers.
   AudioLevel remoteAudioLevel();
-
-  /// Streams [BotOutputEvent]
-  ///
-  /// Placed in a separate stream since this may be a
-  /// high-frequency stream.
-  BotOutputEvent botOutput();
-
-  /// Streams [UserTranscriptionEvent]
-  ///
-  /// Placed in a separate stream since this may be a
-  /// high-frequency stream.
-  UserTranscriptionEvent userTranscriptions();
-
-  /// Streams [SpeakingEvent]
-  SpeakingEvent speakingEvents();
-
-  /// Streams [ConnectionStateEvent]
-  ConnectionStateEvent connectionStateEvents();
-
-  /// Streams [InputStatusUpdatedEvent]
-  InputStatusUpdatedEvent inputStatusEvents();
 }

@@ -5,10 +5,10 @@
 //  Created by Kirk Charles Niverba on 2/1/26.
 //
 
-class PipecatEventStreamHandler: EventsStreamHandler {
-  private var eventSink: PigeonEventSink<PipecatEvent>?
+class TimelineEventStreamHandler: TimelineEventsStreamHandler {
+  private var eventSink: PigeonEventSink<TimelineEvent>?
   
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<PipecatEvent>) {
+  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<TimelineEvent>) {
     self.eventSink = sink
   }
   
@@ -16,7 +16,7 @@ class PipecatEventStreamHandler: EventsStreamHandler {
     self.eventSink = nil
   }
   
-  func sendEvent(_ event: PipecatEvent) {
+  func sendEvent(_ event: TimelineEvent) {
     eventSink?.success(event)
   }
 }
@@ -50,86 +50,5 @@ class RemoteAudioLevelHandler: RemoteAudioLevelStreamHandler {
   
   func sendLevel(_ level: Double) {
     sink?.success(AudioLevel(level: level))
-  }
-}
-
-class BotOutputHandler: BotOutputStreamHandler {
-  private var sink: PigeonEventSink<BotOutputEvent>?
-  
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<BotOutputEvent>) {
-    self.sink = sink
-  }
-  
-  override func onCancel(withArguments arguments: Any?) {
-    self.sink = nil
-  }
-  
-  func sendEvent(_ event: BotOutputEvent) {
-    sink?.success(event)
-  }
-}
-
-class UserTranscriptionHandler: UserTranscriptionsStreamHandler {
-  private var sink: PigeonEventSink<UserTranscriptionEvent>?
-  
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<UserTranscriptionEvent>) {
-    self.sink = sink
-  }
-  
-  override func onCancel(withArguments arguments: Any?) {
-    self.sink = nil
-  }
-  
-  func sendEvent(_ event: UserTranscriptionEvent) {
-    sink?.success(event)
-  }
-}
-
-class ConnectionStateHandler: ConnectionStateEventsStreamHandler {
-  private var sink: PigeonEventSink<ConnectionStateEvent>?
-  
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<ConnectionStateEvent>) {
-    self.sink = sink
-  }
-  
-  override func onCancel(withArguments arguments: Any?) {
-    self.sink = nil
-  }
-  
-  func sendEvent(_ event: ConnectionStateEvent) {
-    sink?.success(event)
-  }
-}
-
-
-class SpeakingEventHandler: SpeakingEventsStreamHandler {
-  private var sink: PigeonEventSink<SpeakingEvent>?
-  
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<SpeakingEvent>) {
-    self.sink = sink
-  }
-  
-  override func onCancel(withArguments arguments: Any?) {
-    self.sink = nil
-  }
-  
-  func sendEvent(_ event: SpeakingEvent) {
-    sink?.success(event)
-  }
-}
-
-class InputStatusUpdatedHandler: InputStatusEventsStreamHandler {
-  private var sink: PigeonEventSink<InputStatusUpdatedEvent>?
-  
-  override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<InputStatusUpdatedEvent>) {
-    self.sink = sink
-  }
-  
-  override func onCancel(withArguments arguments: Any?) {
-    self.sink = nil
-  }
-  
-  func sendEvent(_ event: InputStatusUpdatedEvent) {
-    sink?.success(event)
   }
 }

@@ -21,29 +21,14 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  /// Use the Pigeon-generated events() function
-  Stream<PipecatEvent> get eventStream;
+  /// Canonical ordered timeline stream from native runtime.
+  Stream<TimelineEvent> get timelineEventStream;
 
   /// Local user's microphone level (0.0 - 1.0)
   Stream<AudioLevel> get localAudioLevelStream;
 
   /// Remote participant's (bot) audio level (0.0 - 1.0)
   Stream<AudioLevel> get remoteAudioLevelStream;
-
-  /// Uses the pigeon-generated [BotOutputEvent] stream
-  Stream<BotOutputEvent> get botOutputStream;
-
-  /// Uses the pigeon-generated [UserTranscriptionEvent] stream
-  Stream<UserTranscriptionEvent> get userTranscriptionStream;
-
-  /// Uses the pigeon-generated [SpeakingEvent] stream
-  Stream<SpeakingEvent> get speakingEventStream;
-
-  /// Uses the pigeon-generated [ConnectionStateEvent] stream
-  Stream<ConnectionStateEvent> get connectionStateEventStream;
-
-  /// Uses the pigeon-generated [InputStatusUpdatedEvent] stream
-  Stream<InputStatusUpdatedEvent> get inputStatusStream;
 
   /// Initializes the client, and starts to connect to the room
   Future<void> startAndConnect(StartBotParams params);
@@ -71,9 +56,9 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
 /// Default implementation using Pigeon-generated code
 class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
   @override
-  Stream<PipecatEvent> get eventStream {
+  Stream<TimelineEvent> get timelineEventStream {
     throw UnimplementedError(
-      'eventStream has not been implemented for this platform.',
+      'timelineEventStream has not been implemented for this platform.',
     );
   }
 
@@ -129,32 +114,4 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
   Stream<AudioLevel> get remoteAudioLevelStream => throw UnimplementedError(
     'remoteAudioLevelStream has not been implemented for this platform.',
   );
-
-  @override
-  Stream<BotOutputEvent> get botOutputStream => throw UnimplementedError(
-    'botOutputStream has not been implemented for this platform.',
-  );
-
-  @override
-  Stream<UserTranscriptionEvent> get userTranscriptionStream =>
-      throw UnimplementedError(
-        'userTranscriptionStream has not been implemented for this platform.',
-      );
-
-  @override
-  Stream<ConnectionStateEvent>
-  get connectionStateEventStream => throw UnimplementedError(
-    'connectionStateEventStream has not been implemented for this platform.',
-  );
-
-  @override
-  Stream<SpeakingEvent> get speakingEventStream => throw UnimplementedError(
-    'speakingEventStream has not been implemented for this platform.',
-  );
-
-  @override
-  Stream<InputStatusUpdatedEvent> get inputStatusStream =>
-      throw UnimplementedError(
-        'inputStatusStream has not been implemented for this platform.',
-      );
 }

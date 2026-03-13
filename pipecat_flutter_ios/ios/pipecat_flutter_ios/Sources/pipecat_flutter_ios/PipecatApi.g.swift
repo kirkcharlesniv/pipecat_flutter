@@ -152,6 +152,11 @@ enum InsightType: Int {
   case botTtsStopped = 3
 }
 
+enum BotConnectionState: Int {
+  case connected = 0
+  case disconnected = 1
+}
+
 /// Parameters for starting the bot and connecting
 ///
 /// Used to connect to your transport (for example: a Daily room)
@@ -253,7 +258,7 @@ struct SendTextParams: Hashable {
   }
 }
 
-/// Events that the client receives on a session
+/// Events that the client receives on a session.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 /// This protocol should not be extended by any user class outside of the generated file.
@@ -264,7 +269,7 @@ protocol PipecatEvent {
 /// Emitted when there's a change in the connection state.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct ConnectionStateEvent: Hashable {
+struct ConnectionStateEvent: PipecatEvent {
   var state: ConnectionState
 
 
@@ -320,7 +325,7 @@ struct BackendErrorEvent: PipecatEvent {
 /// including both partial and final results.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct UserTranscriptionEvent: Hashable {
+struct UserTranscriptionEvent: PipecatEvent {
   var text: String
   var isFinal: Bool
   var timestamp: String
@@ -356,27 +361,16 @@ struct UserTranscriptionEvent: Hashable {
   }
 }
 
-/// The best-effort representation of the bot’s output text, including both
-/// spoken and unspoken text. In addition to transcriptions of spoken text,
-/// this message type may also include text that the bot outputs but does
-/// not speak (e.g., text sent to the client for display purposes only).
-///
-/// Along with the text, this event includes a spoken flag to indicate whether
-/// the text was spoken by the bot or not and an aggregated_by field to indicate
-/// what the text represents (e.g. “sentence”, “word”, “code”, “url”).
+/// The best-effort representation of the bot's output text, including both
+/// spoken and unspoken text.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct BotOutputEvent: Hashable {
+struct BotOutputEvent: PipecatEvent {
   /// The output text from the bot.
   var text: String
   /// Indicates if this text was spoken by the bot.
   var isSpoken: Bool
-  /// Indicates how the text was aggregated
-  /// (e.g., “sentence”, “word”, “code”, “url”).
-  ///
-  /// “sentence” and “word” are reserved aggregation types defined
-  /// by the RTVI standard. Other aggregation types may be defined
-  /// by custom text aggregators used by the server.
+  /// Indicates how the text was aggregated.
   var aggregatedBy: String
 
 
@@ -407,7 +401,7 @@ struct BotOutputEvent: Hashable {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
-struct SpeakingEvent: Hashable {
+struct SpeakingEvent: PipecatEvent {
   var state: SpeakingState
 
 
@@ -510,35 +504,6 @@ struct BotLLMText: PipecatEvent {
   }
 }
 
-/// Audio level data for visualizers
-/// Sent at high frequency (~50-100ms intervals)
-///
-/// Generated class from Pigeon that represents data sent in messages.
-struct AudioLevel: Hashable {
-  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
-  var level: Double
-
-
-  // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> AudioLevel? {
-    let level = pigeonVar_list[0] as! Double
-
-    return AudioLevel(
-      level: level
-    )
-  }
-  func toList() -> [Any?] {
-    return [
-      level
-    ]
-  }
-  static func == (lhs: AudioLevel, rhs: AudioLevel) -> Bool {
-    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
-  func hash(into hasher: inout Hasher) {
-    deepHashPipecatApi(value: toList(), hasher: &hasher)
-  }
-}
-
 /// The per-token text output of the text-to-speech (TTS) service
 /// (what the TTS actually says).
 ///
@@ -568,7 +533,7 @@ struct BotTTSText: PipecatEvent {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
-struct InputStatusUpdatedEvent: Hashable {
+struct InputStatusUpdatedEvent: PipecatEvent {
   var isCurrentMicrophoneEnabled: Bool
   var isCurrentCameraEnabled: Bool
   var isBotAudioMuted: Bool
@@ -600,6 +565,223 @@ struct InputStatusUpdatedEvent: Hashable {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct BotConnectionEvent: PipecatEvent {
+  var state: BotConnectionState
+  var participantId: String
+  var participantName: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> BotConnectionEvent? {
+    let state = pigeonVar_list[0] as! BotConnectionState
+    let participantId = pigeonVar_list[1] as! String
+    let participantName: String? = nilOrValue(pigeonVar_list[2])
+
+    return BotConnectionEvent(
+      state: state,
+      participantId: participantId,
+      participantName: participantName
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      state,
+      participantId,
+      participantName,
+    ]
+  }
+  static func == (lhs: BotConnectionEvent, rhs: BotConnectionEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct BotReadyEvent: PipecatEvent {
+  var version: String
+  var aboutJson: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> BotReadyEvent? {
+    let version = pigeonVar_list[0] as! String
+    let aboutJson: String? = nilOrValue(pigeonVar_list[1])
+
+    return BotReadyEvent(
+      version: version,
+      aboutJson: aboutJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      version,
+      aboutJson,
+    ]
+  }
+  static func == (lhs: BotReadyEvent, rhs: BotReadyEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct ServerMessageEvent: PipecatEvent {
+  /// Deterministically-serialized JSON payload from RTVI server-message data.
+  var rawJson: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> ServerMessageEvent? {
+    let rawJson = pigeonVar_list[0] as! String
+
+    return ServerMessageEvent(
+      rawJson: rawJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      rawJson
+    ]
+  }
+  static func == (lhs: ServerMessageEvent, rhs: ServerMessageEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PipecatMetricSample: Hashable {
+  var processor: String
+  var value: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PipecatMetricSample? {
+    let processor = pigeonVar_list[0] as! String
+    let value = pigeonVar_list[1] as! Double
+
+    return PipecatMetricSample(
+      processor: processor,
+      value: value
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      processor,
+      value,
+    ]
+  }
+  static func == (lhs: PipecatMetricSample, rhs: PipecatMetricSample) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct MetricsEvent: PipecatEvent {
+  var processing: [PipecatMetricSample]? = nil
+  var ttfb: [PipecatMetricSample]? = nil
+  /// Deterministically-serialized full metrics payload.
+  var rawJson: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MetricsEvent? {
+    let processing: [PipecatMetricSample]? = nilOrValue(pigeonVar_list[0])
+    let ttfb: [PipecatMetricSample]? = nilOrValue(pigeonVar_list[1])
+    let rawJson: String? = nilOrValue(pigeonVar_list[2])
+
+    return MetricsEvent(
+      processing: processing,
+      ttfb: ttfb,
+      rawJson: rawJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      processing,
+      ttfb,
+      rawJson,
+    ]
+  }
+  static func == (lhs: MetricsEvent, rhs: MetricsEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct TimelineEvent: Hashable {
+  var sequence: Int64
+  var sessionEpoch: Int64
+  var emittedAtMs: Int64
+  var event: PipecatEvent
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> TimelineEvent? {
+    let sequence = pigeonVar_list[0] as! Int64
+    let sessionEpoch = pigeonVar_list[1] as! Int64
+    let emittedAtMs = pigeonVar_list[2] as! Int64
+    let event = pigeonVar_list[3] as! PipecatEvent
+
+    return TimelineEvent(
+      sequence: sequence,
+      sessionEpoch: sessionEpoch,
+      emittedAtMs: emittedAtMs,
+      event: event
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      sequence,
+      sessionEpoch,
+      emittedAtMs,
+      event,
+    ]
+  }
+  static func == (lhs: TimelineEvent, rhs: TimelineEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Audio level data for visualizers.
+/// Sent at high frequency (~50-100ms intervals).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct AudioLevel: Hashable {
+  /// Normalized audio level from 0.0 (silent) to 1.0 (loud)
+  var level: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AudioLevel? {
+    let level = pigeonVar_list[0] as! Double
+
+    return AudioLevel(
+      level: level
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      level
+    ]
+  }
+  static func == (lhs: AudioLevel, rhs: AudioLevel) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
 private class PipecatApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -622,31 +804,49 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 132:
-      return StartBotParams.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return BotConnectionState(rawValue: enumResultAsInt)
+      }
+      return nil
     case 133:
-      return SendTextParams.fromList(self.readValue() as! [Any?])
+      return StartBotParams.fromList(self.readValue() as! [Any?])
     case 134:
-      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
+      return SendTextParams.fromList(self.readValue() as! [Any?])
     case 135:
-      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
+      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
     case 136:
-      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
+      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
     case 137:
-      return BotOutputEvent.fromList(self.readValue() as! [Any?])
+      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
     case 138:
-      return SpeakingEvent.fromList(self.readValue() as! [Any?])
+      return BotOutputEvent.fromList(self.readValue() as! [Any?])
     case 139:
-      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
+      return SpeakingEvent.fromList(self.readValue() as! [Any?])
     case 140:
-      return UserLLMText.fromList(self.readValue() as! [Any?])
+      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
     case 141:
-      return BotLLMText.fromList(self.readValue() as! [Any?])
+      return UserLLMText.fromList(self.readValue() as! [Any?])
     case 142:
-      return AudioLevel.fromList(self.readValue() as! [Any?])
+      return BotLLMText.fromList(self.readValue() as! [Any?])
     case 143:
       return BotTTSText.fromList(self.readValue() as! [Any?])
     case 144:
       return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
+    case 145:
+      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
+    case 146:
+      return BotReadyEvent.fromList(self.readValue() as! [Any?])
+    case 147:
+      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
+    case 148:
+      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
+    case 149:
+      return MetricsEvent.fromList(self.readValue() as! [Any?])
+    case 150:
+      return TimelineEvent.fromList(self.readValue() as! [Any?])
+    case 151:
+      return AudioLevel.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -664,37 +864,37 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? InsightType {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? StartBotParams {
+    } else if let value = value as? BotConnectionState {
       super.writeByte(132)
-      super.writeValue(value.toList())
-    } else if let value = value as? SendTextParams {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? StartBotParams {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionStateEvent {
+    } else if let value = value as? SendTextParams {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? BackendErrorEvent {
+    } else if let value = value as? ConnectionStateEvent {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? UserTranscriptionEvent {
+    } else if let value = value as? BackendErrorEvent {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? BotOutputEvent {
+    } else if let value = value as? UserTranscriptionEvent {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakingEvent {
+    } else if let value = value as? BotOutputEvent {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerInsightEvent {
+    } else if let value = value as? SpeakingEvent {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? UserLLMText {
+    } else if let value = value as? ServerInsightEvent {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? BotLLMText {
+    } else if let value = value as? UserLLMText {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioLevel {
+    } else if let value = value as? BotLLMText {
       super.writeByte(142)
       super.writeValue(value.toList())
     } else if let value = value as? BotTTSText {
@@ -702,6 +902,27 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? InputStatusUpdatedEvent {
       super.writeByte(144)
+      super.writeValue(value.toList())
+    } else if let value = value as? BotConnectionEvent {
+      super.writeByte(145)
+      super.writeValue(value.toList())
+    } else if let value = value as? BotReadyEvent {
+      super.writeByte(146)
+      super.writeValue(value.toList())
+    } else if let value = value as? ServerMessageEvent {
+      super.writeByte(147)
+      super.writeValue(value.toList())
+    } else if let value = value as? PipecatMetricSample {
+      super.writeByte(148)
+      super.writeValue(value.toList())
+    } else if let value = value as? MetricsEvent {
+      super.writeByte(149)
+      super.writeValue(value.toList())
+    } else if let value = value as? TimelineEvent {
+      super.writeByte(150)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioLevel {
+      super.writeByte(151)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -906,15 +1127,15 @@ class PigeonEventSink<ReturnType> {
 
 }
 
-class EventsStreamHandler: PigeonEventChannelWrapper<PipecatEvent> {
+class TimelineEventsStreamHandler: PigeonEventChannelWrapper<TimelineEvent> {
   static func register(with messenger: FlutterBinaryMessenger,
                       instanceName: String = "",
-                      streamHandler: EventsStreamHandler) {
-    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.events"
+                      streamHandler: TimelineEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.timelineEvents"
     if !instanceName.isEmpty {
       channelName += ".\(instanceName)"
     }
-    let internalStreamHandler = PigeonStreamHandler<PipecatEvent>(wrapper: streamHandler)
+    let internalStreamHandler = PigeonStreamHandler<TimelineEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }
@@ -943,76 +1164,6 @@ class RemoteAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
-    channel.setStreamHandler(internalStreamHandler)
-  }
-}
-      
-class BotOutputStreamHandler: PigeonEventChannelWrapper<BotOutputEvent> {
-  static func register(with messenger: FlutterBinaryMessenger,
-                      instanceName: String = "",
-                      streamHandler: BotOutputStreamHandler) {
-    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.botOutput"
-    if !instanceName.isEmpty {
-      channelName += ".\(instanceName)"
-    }
-    let internalStreamHandler = PigeonStreamHandler<BotOutputEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
-    channel.setStreamHandler(internalStreamHandler)
-  }
-}
-      
-class UserTranscriptionsStreamHandler: PigeonEventChannelWrapper<UserTranscriptionEvent> {
-  static func register(with messenger: FlutterBinaryMessenger,
-                      instanceName: String = "",
-                      streamHandler: UserTranscriptionsStreamHandler) {
-    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.userTranscriptions"
-    if !instanceName.isEmpty {
-      channelName += ".\(instanceName)"
-    }
-    let internalStreamHandler = PigeonStreamHandler<UserTranscriptionEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
-    channel.setStreamHandler(internalStreamHandler)
-  }
-}
-      
-class SpeakingEventsStreamHandler: PigeonEventChannelWrapper<SpeakingEvent> {
-  static func register(with messenger: FlutterBinaryMessenger,
-                      instanceName: String = "",
-                      streamHandler: SpeakingEventsStreamHandler) {
-    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.speakingEvents"
-    if !instanceName.isEmpty {
-      channelName += ".\(instanceName)"
-    }
-    let internalStreamHandler = PigeonStreamHandler<SpeakingEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
-    channel.setStreamHandler(internalStreamHandler)
-  }
-}
-      
-class ConnectionStateEventsStreamHandler: PigeonEventChannelWrapper<ConnectionStateEvent> {
-  static func register(with messenger: FlutterBinaryMessenger,
-                      instanceName: String = "",
-                      streamHandler: ConnectionStateEventsStreamHandler) {
-    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.connectionStateEvents"
-    if !instanceName.isEmpty {
-      channelName += ".\(instanceName)"
-    }
-    let internalStreamHandler = PigeonStreamHandler<ConnectionStateEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
-    channel.setStreamHandler(internalStreamHandler)
-  }
-}
-      
-class InputStatusEventsStreamHandler: PigeonEventChannelWrapper<InputStatusUpdatedEvent> {
-  static func register(with messenger: FlutterBinaryMessenger,
-                      instanceName: String = "",
-                      streamHandler: InputStatusEventsStreamHandler) {
-    var channelName = "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatEventStreamApi.inputStatusEvents"
-    if !instanceName.isEmpty {
-      channelName += ".\(instanceName)"
-    }
-    let internalStreamHandler = PigeonStreamHandler<InputStatusUpdatedEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
     channel.setStreamHandler(internalStreamHandler)
   }

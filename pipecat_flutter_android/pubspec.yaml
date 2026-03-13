@@ -1,6 +1,7 @@
 name: pipecat_flutter_android
 description: Android implementation of the pipecat_flutter plugin
-version: 0.2.0+3
+version: 2.0.0
+publish_to: none
 repository: https://github.com/kirkcharlesniv/pipecat_flutter/tree/main/pipecat_flutter_android
 issue_tracker: https://github.com/kirkcharlesniv/pipecat_flutter/issues
 
@@ -20,7 +21,8 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  pipecat_flutter_platform_interface: ^0.2.0
+  pipecat_flutter_platform_interface:
+    path: ../pipecat_flutter_platform_interface
 
 dev_dependencies:
   flutter_test:

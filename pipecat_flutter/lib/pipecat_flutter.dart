@@ -11,28 +11,29 @@ class PipecatFlutter {
   /// Convenience accessor for the current platform implementation (Android/iOS).
   PipecatFlutterPlatform get _platform => PipecatFlutterPlatform.instance;
 
-  /// Stream of all events emitted by the underlying
-  /// Pipecat session (raw, unfiltered).
-  Stream<PipecatEvent> get events => _platform.eventStream;
+  /// Canonical ordered timeline stream for all session events.
+  Stream<TimelineEvent> get timelineEvents => _platform.timelineEventStream;
+
+  /// Stream of unwrapped event payloads from [timelineEvents].
+  Stream<PipecatEvent> get events => timelineEvents.map((e) => e.event);
 
   // ---- Filtered streams for convenience
 
   /// Stream containing only connection state change events (e.g., connected/disconnected).
   Stream<ConnectionStateEvent> get connectionStateEvents =>
-      _platform.connectionStateEventStream;
+      events.whereType<ConnectionStateEvent>();
 
   /// Stream containing only speaking state events (e.g., user/bot started/stopped speaking).
-  Stream<SpeakingEvent> get speakingEvents => _platform.speakingEventStream;
+  Stream<SpeakingEvent> get speakingEvents => events.whereType<SpeakingEvent>();
 
   /// Stream containing only user transcription events
   /// (speech-to-text results from the user).
   Stream<UserTranscriptionEvent> get userTranscriptionEvents =>
-      _platform.userTranscriptionStream;
+      events.whereType<UserTranscriptionEvent>();
 
   /// Stream containing only LLM text events produced by the bot
   /// (model-generated text).
-  Stream<BotLLMText> get botLlmTextEvents =>
-      _platform.localAudioLevelStream.whereType<BotLLMText>();
+  Stream<BotLLMText> get botLlmTextEvents => events.whereType<BotLLMText>();
 
   /// Stream containing only TTS text events produced by the bot
   /// (text being spoken/synthesized).
@@ -40,7 +41,8 @@ class PipecatFlutter {
 
   /// Stream containing only bot output events
   /// (generic bot output signals beyond pure text).
-  Stream<BotOutputEvent> get botOutputEvents => _platform.botOutputStream;
+  Stream<BotOutputEvent> get botOutputEvents =>
+      events.whereType<BotOutputEvent>();
 
   /// Stream containing only server insight events
   /// (when the LLM started and stopped).
@@ -55,7 +57,21 @@ class PipecatFlutter {
   /// Stream containing only backend error events
   /// (errors originating from the platform/backend).
   Stream<InputStatusUpdatedEvent> get inputStatusEvents =>
-      _platform.inputStatusStream;
+      events.whereType<InputStatusUpdatedEvent>();
+
+  /// Stream containing only bot-ready handshake events.
+  Stream<BotReadyEvent> get botReadyEvents => events.whereType<BotReadyEvent>();
+
+  /// Stream containing only raw server-message events.
+  Stream<ServerMessageEvent> get serverMessageEvents =>
+      events.whereType<ServerMessageEvent>();
+
+  /// Stream containing only metrics events.
+  Stream<MetricsEvent> get metricsEvents => events.whereType<MetricsEvent>();
+
+  /// Stream containing bot connect/disconnect lifecycle events.
+  Stream<BotConnectionEvent> get botConnectionEvents =>
+      events.whereType<BotConnectionEvent>();
 
   /// Start and connect to bot
   ///

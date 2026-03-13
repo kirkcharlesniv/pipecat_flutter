@@ -1,28 +1,30 @@
 package com.kcniverba
 
-import android.content.Context
-import android.os.Handler
-import android.os.Looper
-
-import io.flutter.embedding.engine.plugins.FlutterPlugin
-
-import com.kcniverba.pipecat_flutter_android.*
-
 import ai.pipecat.client.PipecatClient
 import ai.pipecat.client.PipecatClientOptions
 import ai.pipecat.client.PipecatEventCallbacks
 import ai.pipecat.client.daily.DailyTransport
 import ai.pipecat.client.daily.DailyTransportConnectParams
+import ai.pipecat.client.result.Result as PipecatResult
 import ai.pipecat.client.transport.MsgServerToClient
 import ai.pipecat.client.types.BotOutputData
-import ai.pipecat.client.result.Result as PipecatResult
+import ai.pipecat.client.types.BotReadyData
+import ai.pipecat.client.types.Participant
+import ai.pipecat.client.types.PipecatMetrics
+import ai.pipecat.client.types.PipecatMetricsData
+import ai.pipecat.client.types.SendTextOptions
 import ai.pipecat.client.types.TransportState
 import ai.pipecat.client.types.Transcript
-import ai.pipecat.client.types.Participant
-import ai.pipecat.client.types.SendTextOptions
+import ai.pipecat.client.types.Value
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import co.daily.model.MeetingToken
 import co.daily.model.RemoteInputsEnabledUpdate
 import co.daily.model.RemoteParticipantUpdate
+import com.kcniverba.pipecat_flutter_android.*
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import org.json.JSONObject
 
 class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     private var client: PipecatClient<DailyTransport, DailyTransportConnectParams>? = null
@@ -30,25 +32,26 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     private var applicationContext: Context? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private var eventStreamHandler: PipecatEventStreamHandlerImpl? = null
+    private var timelineHandler: TimelineEventHandlerImpl? = null
     private var localAudioHandler: LocalAudioLevelHandlerImpl? = null
     private var remoteAudioHandler: RemoteAudioLevelHandlerImpl? = null
-    private var botOutputHandler: BotOutputHandlerImpl? = null
-    private var userTranscriptionHandler: UserTranscriptionHandlerImpl? = null
-    private var connectionStateHandler: ConnectionStateHandlerImpl? = null
-    private var speakingEventHandler: SpeakingEventHandlerImpl? = null
-    private var inputStatusUpdatedHandler: InputStatusUpdatedHandlerImpl? = null
 
     private var isBotAudioMuted: Boolean = false
 
-    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        applicationContext = flutterPluginBinding.applicationContext
-        val messenger = flutterPluginBinding.binaryMessenger
+    private var activeSessionEpoch: Long = 0
+    private var sequenceCounter: Long = 0
+    private var disconnectedEpoch: Long = -1
+    private var lastConnectionState: ConnectionState? = null
+    private var lastSpeakingState: SpeakingState? = null
+
+    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        applicationContext = binding.applicationContext
+        val messenger = binding.binaryMessenger
 
         PipecatHostApi.setUp(messenger, this)
 
-        eventStreamHandler = PipecatEventStreamHandlerImpl().also {
-            EventsStreamHandler.register(messenger, it)
+        timelineHandler = TimelineEventHandlerImpl().also {
+            TimelineEventsStreamHandler.register(messenger, it)
         }
         localAudioHandler = LocalAudioLevelHandlerImpl().also {
             LocalAudioLevelStreamHandler.register(messenger, it)
@@ -56,79 +59,83 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         remoteAudioHandler = RemoteAudioLevelHandlerImpl().also {
             RemoteAudioLevelStreamHandler.register(messenger, it)
         }
-        botOutputHandler = BotOutputHandlerImpl().also {
-            BotOutputStreamHandler.register(messenger, it)
-        }
-        userTranscriptionHandler = UserTranscriptionHandlerImpl().also {
-            UserTranscriptionsStreamHandler.register(messenger, it)
-        }
-        connectionStateHandler = ConnectionStateHandlerImpl().also {
-            ConnectionStateEventsStreamHandler.register(messenger, it)
-        }
-        speakingEventHandler = SpeakingEventHandlerImpl().also {
-            SpeakingEventsStreamHandler.register(messenger, it)
-        }
-        inputStatusUpdatedHandler = InputStatusUpdatedHandlerImpl().also {
-            InputStatusEventsStreamHandler.register(messenger, it)
-        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         PipecatHostApi.setUp(binding.binaryMessenger, null)
-        client?.release()
-        client = null
-        transport = null
+        cleanupClient(release = true)
         applicationContext = null
     }
 
-    // -- PipecatHostApi --
-
     override fun startAndConnect(parameters: StartBotParams, callback: (Result<Unit>) -> Unit) {
         if (client != null) {
-            callback(Result.failure(FlutterError(
-                code = "ALREADY_CONNECTED",
-                message = "Client already exists. Disconnect first."
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "ALREADY_CONNECTED",
+                        message = "Client already exists. Disconnect first.",
+                    )
+                )
+            )
             return
         }
 
         val context = applicationContext ?: run {
-            callback(Result.failure(FlutterError(
-                code = "NO_CONTEXT",
-                message = "Application context not available"
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_CONTEXT",
+                        message = "Application context not available",
+                    )
+                )
+            )
             return
         }
 
-        val newTransport = DailyTransport(context)
-        transport = newTransport
-
-        val options = PipecatClientOptions(
-            callbacks = createCallbacks(),
-            enableMic = parameters.shouldEnableMicrophone,
-            enableCam = parameters.shouldEnableCamera
+        val sessionEpoch = beginNewSessionEpoch()
+        emitTimelineEvent(
+            event = ConnectionStateEvent(state = ConnectionState.CONNECTING),
+            sessionEpoch = sessionEpoch,
         )
 
+        val newTransport = DailyTransport(context)
+        val options = PipecatClientOptions(
+            callbacks = createCallbacks(sessionEpoch),
+            enableMic = parameters.shouldEnableMicrophone,
+            enableCam = parameters.shouldEnableCamera,
+        )
         val newClient = PipecatClient(newTransport, options)
+
+        transport = newTransport
         client = newClient
 
         val connectParams = DailyTransportConnectParams(
             dailyRoom = parameters.url,
-            dailyToken = parameters.token?.let { MeetingToken(it) }
+            dailyToken = parameters.token?.let { MeetingToken(it) },
         )
 
         newClient.connect(connectParams).withCallback { result ->
             runOnMain {
+                if (!isCurrentEpoch(sessionEpoch)) {
+                    return@runOnMain
+                }
+
                 when (result) {
                     is PipecatResult.Ok -> {
-                        updateInputState()
+                        updateInputState(sessionEpoch)
                         callback(Result.success(Unit))
                     }
+
                     is PipecatResult.Err -> {
-                        callback(Result.failure(FlutterError(
-                            code = "CONNECT_ERROR",
-                            message = result.error.toString()
-                        )))
+                        cleanupFailedConnect(sessionEpoch)
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "CONNECT_ERROR",
+                                    message = result.error.toString(),
+                                )
+                            )
+                        )
                     }
                 }
             }
@@ -136,7 +143,13 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     }
 
     override fun disconnect(callback: (Result<Unit>) -> Unit) {
-        val currentClient = client ?: run {
+        val sessionEpoch = activeSessionEpoch
+        val currentClient = client
+        if (currentClient == null) {
+            isBotAudioMuted = false
+            if (sessionEpoch > 0) {
+                emitDisconnectedIfNeeded(sessionEpoch)
+            }
             callback(Result.success(Unit))
             return
         }
@@ -145,16 +158,23 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             runOnMain {
                 when (result) {
                     is PipecatResult.Ok -> {
-                        currentClient.release()
-                        client = null
-                        transport = null
+                        if (client === currentClient) {
+                            cleanupClient(release = true)
+                        }
+                        isBotAudioMuted = false
+                        emitDisconnectedIfNeeded(sessionEpoch)
                         callback(Result.success(Unit))
                     }
+
                     is PipecatResult.Err -> {
-                        callback(Result.failure(FlutterError(
-                            code = "DISCONNECT_ERROR",
-                            message = result.error.toString()
-                        )))
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "DISCONNECT_ERROR",
+                                    message = result.error.toString(),
+                                )
+                            )
+                        )
                     }
                 }
             }
@@ -163,25 +183,35 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     override fun toggleMicrophone(isEnabled: Boolean, callback: (Result<Unit>) -> Unit) {
         val currentClient = client ?: run {
-            callback(Result.failure(FlutterError(
-                code = "NO_CLIENT",
-                message = "Client not available"
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_CLIENT",
+                        message = "Client not available",
+                    )
+                )
+            )
             return
         }
 
+        val epoch = activeSessionEpoch
         currentClient.enableMic(isEnabled).withCallback { result ->
             runOnMain {
                 when (result) {
                     is PipecatResult.Ok -> {
-                        updateInputState()
+                        updateInputState(epoch)
                         callback(Result.success(Unit))
                     }
+
                     is PipecatResult.Err -> {
-                        callback(Result.failure(FlutterError(
-                            code = "MIC_ERROR",
-                            message = result.error.toString()
-                        )))
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "MIC_ERROR",
+                                    message = result.error.toString(),
+                                )
+                            )
+                        )
                     }
                 }
             }
@@ -190,25 +220,35 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     override fun toggleCamera(isEnabled: Boolean, callback: (Result<Unit>) -> Unit) {
         val currentClient = client ?: run {
-            callback(Result.failure(FlutterError(
-                code = "NO_CLIENT",
-                message = "Client not available"
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_CLIENT",
+                        message = "Client not available",
+                    )
+                )
+            )
             return
         }
 
+        val epoch = activeSessionEpoch
         currentClient.enableCam(isEnabled).withCallback { result ->
             runOnMain {
                 when (result) {
                     is PipecatResult.Ok -> {
-                        updateInputState()
+                        updateInputState(epoch)
                         callback(Result.success(Unit))
                     }
+
                     is PipecatResult.Err -> {
-                        callback(Result.failure(FlutterError(
-                            code = "CAMERA_ERROR",
-                            message = result.error.toString()
-                        )))
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "CAMERA_ERROR",
+                                    message = result.error.toString(),
+                                )
+                            )
+                        )
                     }
                 }
             }
@@ -217,16 +257,20 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     override fun muteBotAudio(isMuted: Boolean, callback: (Result<Unit>) -> Unit) {
         val dailyTransport = transport ?: run {
-            callback(Result.failure(FlutterError(
-                code = "NO_CLIENT",
-                message = "Client or transport not available"
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_CLIENT",
+                        message = "Client or transport not available",
+                    )
+                )
+            )
             return
         }
 
         try {
             val callClient = dailyTransport.callClient
-                ?: throw Exception("CallClient not available")
+                ?: throw IllegalStateException("CallClient not available")
 
             val remoteParticipants = callClient.participants().all.values
                 .filter { !it.info.isLocal }
@@ -236,36 +280,38 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                     mapOf(
                         participant.id to RemoteParticipantUpdate(
                             inputsEnabled = RemoteInputsEnabledUpdate(
-                                microphone = !isMuted
+                                microphone = !isMuted,
                             )
                         )
                     )
                 )
             }
 
-            this.isBotAudioMuted = isMuted
-            inputStatusUpdatedHandler?.sendEvent(
-                InputStatusUpdatedEvent(
-                    isCurrentMicrophoneEnabled = client?.isMicEnabled ?: false,
-                    isCurrentCameraEnabled = client?.isCamEnabled ?: false,
-                    isBotAudioMuted = isMuted
-                )
-            )
+            isBotAudioMuted = isMuted
+            updateInputState(activeSessionEpoch)
             callback(Result.success(Unit))
         } catch (e: Exception) {
-            callback(Result.failure(FlutterError(
-                code = "MUTE_ERROR",
-                message = e.localizedMessage ?: e.toString()
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "MUTE_ERROR",
+                        message = e.localizedMessage ?: e.toString(),
+                    )
+                )
+            )
         }
     }
 
     override fun sendText(parameters: SendTextParams, callback: (Result<Unit>) -> Unit) {
         val currentClient = client ?: run {
-            callback(Result.failure(FlutterError(
-                code = "NO_CLIENT",
-                message = "Client not available"
-            )))
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_CLIENT",
+                        message = "Client not available",
+                    )
+                )
+            )
             return
         }
 
@@ -273,35 +319,202 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             parameters.content,
             SendTextOptions(
                 runImmediately = parameters.runImmediately,
-                audioResponse = parameters.audioResponse
+                audioResponse = parameters.audioResponse,
             )
         ).withCallback { result ->
             runOnMain {
                 when (result) {
                     is PipecatResult.Ok -> callback(Result.success(Unit))
                     is PipecatResult.Err -> {
-                        callback(Result.failure(FlutterError(
-                            code = "SEND_TEXT_ERROR",
-                            message = result.error.toString()
-                        )))
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "SEND_TEXT_ERROR",
+                                    message = result.error.toString(),
+                                )
+                            )
+                        )
                     }
                 }
             }
         }
     }
 
-    // -- Helpers --
+    private fun beginNewSessionEpoch(): Long {
+        activeSessionEpoch += 1
+        sequenceCounter = 0
+        disconnectedEpoch = -1
+        lastConnectionState = null
+        lastSpeakingState = null
+        return activeSessionEpoch
+    }
 
-    private fun updateInputState() {
-        val currentClient = client ?: return
+    private fun isCurrentEpoch(sessionEpoch: Long): Boolean {
+        return sessionEpoch > 0 && sessionEpoch == activeSessionEpoch
+    }
 
-        inputStatusUpdatedHandler?.sendEvent(
-            InputStatusUpdatedEvent(
-                isCurrentMicrophoneEnabled = currentClient.isMicEnabled,
-                isCurrentCameraEnabled = currentClient.isCamEnabled,
-                isBotAudioMuted = isBotAudioMuted
+    private fun cleanupFailedConnect(sessionEpoch: Long) {
+        if (!isCurrentEpoch(sessionEpoch)) return
+        cleanupClient(release = true)
+        isBotAudioMuted = false
+        emitDisconnectedIfNeeded(sessionEpoch)
+    }
+
+    private fun cleanupClient(release: Boolean) {
+        val existing = client
+        if (release && existing != null) {
+            existing.release()
+        }
+        client = null
+        transport = null
+    }
+
+    private fun emitDisconnectedIfNeeded(sessionEpoch: Long) {
+        if (sessionEpoch <= 0) return
+        if (disconnectedEpoch == sessionEpoch) return
+
+        emitTimelineEvent(
+            event = ConnectionStateEvent(state = ConnectionState.DISCONNECTED),
+            sessionEpoch = sessionEpoch,
+        )
+    }
+
+    private fun emitTimelineEvent(event: PipecatEvent, sessionEpoch: Long) {
+        if (sessionEpoch <= 0 || sessionEpoch != activeSessionEpoch) {
+            return
+        }
+
+        if (event is ConnectionStateEvent) {
+            if (lastConnectionState == event.state) {
+                return
+            }
+            lastConnectionState = event.state
+            if (event.state == ConnectionState.DISCONNECTED) {
+                disconnectedEpoch = sessionEpoch
+                lastSpeakingState = null
+            }
+        }
+
+        if (event is SpeakingEvent) {
+            if (lastSpeakingState == event.state) {
+                return
+            }
+            lastSpeakingState = event.state
+        }
+
+        sequenceCounter += 1
+        timelineHandler?.sendEvent(
+            TimelineEvent(
+                sequence = sequenceCounter,
+                sessionEpoch = sessionEpoch,
+                emittedAtMs = System.currentTimeMillis(),
+                event = event,
             )
         )
+    }
+
+    private fun updateInputState(sessionEpoch: Long) {
+        val currentClient = client ?: return
+        emitTimelineEvent(
+            event = InputStatusUpdatedEvent(
+                isCurrentMicrophoneEnabled = currentClient.isMicEnabled,
+                isCurrentCameraEnabled = currentClient.isCamEnabled,
+                isBotAudioMuted = isBotAudioMuted,
+            ),
+            sessionEpoch = sessionEpoch,
+        )
+    }
+
+    private fun mapTransportState(state: TransportState): ConnectionState {
+        return when (state) {
+            TransportState.Initializing,
+            TransportState.Initialized,
+            TransportState.Connecting,
+            TransportState.Authorizing,
+            TransportState.Authorized -> ConnectionState.CONNECTING
+
+            TransportState.Ready,
+            TransportState.Connected -> ConnectionState.CONNECTED
+
+            TransportState.Disconnected,
+            TransportState.Error -> ConnectionState.DISCONNECTED
+        }
+    }
+
+    private fun mapMetrics(samples: List<PipecatMetricsData>?): List<PipecatMetricSample>? {
+        return samples?.map { PipecatMetricSample(processor = it.processor, value = it.value) }
+    }
+
+    private fun metricsRawJson(data: PipecatMetrics): String {
+        val payload = mutableMapOf<String, Any?>()
+        if (data.processing != null) {
+            payload["processing"] = data.processing.map {
+                mapOf(
+                    "processor" to it.processor,
+                    "value" to it.value,
+                )
+            }
+        }
+        if (data.ttfb != null) {
+            payload["ttfb"] = data.ttfb.map {
+                mapOf(
+                    "processor" to it.processor,
+                    "value" to it.value,
+                )
+            }
+        }
+        return toCanonicalJson(payload)
+    }
+
+    private fun valueToCanonicalJson(value: Value?): String? {
+        if (value == null || value is Value.Null) return null
+        return toCanonicalJson(valueToPlainObject(value))
+    }
+
+    private fun valueToPlainObject(value: Value): Any? {
+        return when (value) {
+            is Value.Null -> null
+            is Value.Str -> value.value
+            is Value.Bool -> value.value
+            is Value.Number -> value.value
+            is Value.Array -> value.value.map { valueToPlainObject(it) }
+            is Value.Object -> value.value.mapValues { valueToPlainObject(it.value) }
+        }
+    }
+
+    private fun toCanonicalJson(value: Any?): String {
+        return when (value) {
+            null -> "null"
+            is String -> JSONObject.quote(value)
+            is Boolean -> if (value) "true" else "false"
+            is Int, is Long, is Short, is Byte -> value.toString()
+            is Float -> {
+                if (!value.isFinite()) "null" else value.toString()
+            }
+
+            is Double -> {
+                if (!value.isFinite()) "null" else value.toString()
+            }
+
+            is List<*> -> value.joinToString(
+                separator = ",",
+                prefix = "[",
+                postfix = "]",
+            ) { entry -> toCanonicalJson(entry) }
+
+            is Map<*, *> -> {
+                val keys = value.keys.mapNotNull { it as? String }.sorted()
+                keys.joinToString(
+                    separator = ",",
+                    prefix = "{",
+                    postfix = "}",
+                ) { key ->
+                    "${JSONObject.quote(key)}:${toCanonicalJson(value[key])}"
+                }
+            }
+
+            else -> JSONObject.quote(value.toString())
+        }
     }
 
     private fun runOnMain(block: () -> Unit) {
@@ -312,175 +525,273 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
     }
 
-    // -- PipecatEventCallbacks --
-
-    private fun createCallbacks(): PipecatEventCallbacks {
+    private fun createCallbacks(sessionEpoch: Long): PipecatEventCallbacks {
         return object : PipecatEventCallbacks() {
-
             override fun onConnected() {
                 runOnMain {
-                    connectionStateHandler?.sendEvent(
-                        ConnectionStateEvent(state = ConnectionState.CONNECTED)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = ConnectionStateEvent(state = ConnectionState.CONNECTED),
+                        sessionEpoch = sessionEpoch,
                     )
-                    updateInputState()
+                    updateInputState(sessionEpoch)
                 }
             }
 
             override fun onDisconnected() {
                 runOnMain {
-                    connectionStateHandler?.sendEvent(
-                        ConnectionStateEvent(state = ConnectionState.DISCONNECTED)
-                    )
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitDisconnectedIfNeeded(sessionEpoch)
                 }
             }
 
             override fun onTransportStateChanged(state: TransportState) {
                 runOnMain {
-                    val connectionState = when (state) {
-                        TransportState.Initializing,
-                        TransportState.Initialized,
-                        TransportState.Connecting,
-                        TransportState.Authorizing,
-                        TransportState.Authorized -> ConnectionState.CONNECTING
-                        TransportState.Ready,
-                        TransportState.Connected -> ConnectionState.CONNECTED
-                        TransportState.Disconnected,
-                        TransportState.Error -> ConnectionState.DISCONNECTED
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+
+                    val mapped = mapTransportState(state)
+                    if (mapped == ConnectionState.DISCONNECTED) {
+                        emitDisconnectedIfNeeded(sessionEpoch)
+                    } else {
+                        emitTimelineEvent(
+                            event = ConnectionStateEvent(state = mapped),
+                            sessionEpoch = sessionEpoch,
+                        )
                     }
-                    connectionStateHandler?.sendEvent(
-                        ConnectionStateEvent(state = connectionState)
-                    )
-                    updateInputState()
+                    updateInputState(sessionEpoch)
                 }
             }
 
             override fun onBackendError(message: String) {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(BackendErrorEvent(message = message))
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BackendErrorEvent(message = message),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onBotConnected(participant: Participant) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BotConnectionEvent(
+                            state = BotConnectionState.CONNECTED,
+                            participantId = participant.id.id,
+                            participantName = participant.name,
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onBotReady(data: BotReadyData) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BotReadyEvent(
+                            version = data.version,
+                            aboutJson = valueToCanonicalJson(data.about),
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onBotDisconnected(participant: Participant) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BotConnectionEvent(
+                            state = BotConnectionState.DISCONNECTED,
+                            participantId = participant.id.id,
+                            participantName = participant.name,
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onMetrics(data: PipecatMetrics) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = MetricsEvent(
+                            processing = mapMetrics(data.processing),
+                            ttfb = mapMetrics(data.ttfb),
+                            rawJson = metricsRawJson(data),
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onServerMessage(data: Value) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = ServerMessageEvent(
+                            rawJson = valueToCanonicalJson(data) ?: "null",
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
                 }
             }
 
             override fun onUserStartedSpeaking() {
                 runOnMain {
-                    speakingEventHandler?.sendEvent(
-                        SpeakingEvent(state = SpeakingState.USER_STARTED_SPEAKING)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = SpeakingEvent(state = SpeakingState.USER_STARTED_SPEAKING),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onUserStoppedSpeaking() {
                 runOnMain {
-                    speakingEventHandler?.sendEvent(
-                        SpeakingEvent(state = SpeakingState.USER_STOPPED_SPEAKING)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = SpeakingEvent(state = SpeakingState.USER_STOPPED_SPEAKING),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotStartedSpeaking() {
                 runOnMain {
-                    speakingEventHandler?.sendEvent(
-                        SpeakingEvent(state = SpeakingState.BOT_STARTED_SPEAKING)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = SpeakingEvent(state = SpeakingState.BOT_STARTED_SPEAKING),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotStoppedSpeaking() {
                 runOnMain {
-                    speakingEventHandler?.sendEvent(
-                        SpeakingEvent(state = SpeakingState.BOT_STOPPED_SPEAKING)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = SpeakingEvent(state = SpeakingState.BOT_STOPPED_SPEAKING),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotOutput(data: BotOutputData) {
                 runOnMain {
-                    botOutputHandler?.sendEvent(
-                        BotOutputEvent(
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BotOutputEvent(
                             text = data.text,
                             isSpoken = data.spoken,
-                            aggregatedBy = data.aggregatedBy
-                        )
+                            aggregatedBy = data.aggregatedBy,
+                        ),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onUserTranscript(data: Transcript) {
                 runOnMain {
-                    userTranscriptionHandler?.sendEvent(
-                        UserTranscriptionEvent(
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = UserTranscriptionEvent(
                             text = data.text,
                             isFinal = data.final,
                             timestamp = data.timestamp ?: "",
-                            userId = data.userId ?: ""
-                        )
+                            userId = data.userId ?: "",
+                        ),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotLLMText(data: MsgServerToClient.Data.BotLLMTextData) {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(BotLLMText(text = data.text))
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BotLLMText(text = data.text),
+                        sessionEpoch = sessionEpoch,
+                    )
                 }
             }
 
             override fun onBotTTSText(data: MsgServerToClient.Data.BotTTSTextData) {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(BotTTSText(text = data.text))
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = BotTTSText(text = data.text),
+                        sessionEpoch = sessionEpoch,
+                    )
                 }
             }
 
             override fun onBotLLMStarted() {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(
-                        ServerInsightEvent(type = InsightType.BOT_LLM_STARTED)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = ServerInsightEvent(type = InsightType.BOT_LLM_STARTED),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotLLMStopped() {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(
-                        ServerInsightEvent(type = InsightType.BOT_LLM_STOPPED)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = ServerInsightEvent(type = InsightType.BOT_LLM_STOPPED),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotTTSStarted() {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(
-                        ServerInsightEvent(type = InsightType.BOT_TTS_STARTED)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = ServerInsightEvent(type = InsightType.BOT_TTS_STARTED),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onBotTTSStopped() {
                 runOnMain {
-                    eventStreamHandler?.sendEvent(
-                        ServerInsightEvent(type = InsightType.BOT_TTS_STOPPED)
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = ServerInsightEvent(type = InsightType.BOT_TTS_STOPPED),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onInputsUpdated(camera: Boolean, mic: Boolean) {
                 runOnMain {
-                    inputStatusUpdatedHandler?.sendEvent(
-                        InputStatusUpdatedEvent(
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = InputStatusUpdatedEvent(
                             isCurrentMicrophoneEnabled = mic,
                             isCurrentCameraEnabled = camera,
-                            isBotAudioMuted = isBotAudioMuted
-                        )
+                            isBotAudioMuted = isBotAudioMuted,
+                        ),
+                        sessionEpoch = sessionEpoch,
                     )
                 }
             }
 
             override fun onUserAudioLevel(level: Float) {
                 runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
                     localAudioHandler?.sendLevel(level.toDouble())
                 }
             }
 
             override fun onRemoteAudioLevel(level: Float, participant: Participant) {
                 runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
                     remoteAudioHandler?.sendLevel(level.toDouble())
                 }
             }
