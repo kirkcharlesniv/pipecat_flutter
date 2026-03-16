@@ -1,3 +1,7 @@
+## 2.0.0
+
+- Refactor: single canonical stream
+
 ## 0.2.0+2
 
 - Integrate `sendText`
