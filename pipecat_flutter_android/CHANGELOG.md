@@ -1,3 +1,7 @@
+## 2.0.1
+
+- Fix: failed to build in Android
+
 ## 2.0.0
 
 - Refactor: single canonical stream

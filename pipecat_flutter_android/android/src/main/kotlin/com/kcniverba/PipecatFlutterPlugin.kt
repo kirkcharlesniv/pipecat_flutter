@@ -447,16 +447,18 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     private fun metricsRawJson(data: PipecatMetrics): String {
         val payload = mutableMapOf<String, Any?>()
-        if (data.processing != null) {
-            payload["processing"] = data.processing.map {
+        val processing = data.processing
+        if (processing != null) {
+            payload["processing"] = processing.map {
                 mapOf(
                     "processor" to it.processor,
                     "value" to it.value,
                 )
             }
         }
-        if (data.ttfb != null) {
-            payload["ttfb"] = data.ttfb.map {
+        val ttfb = data.ttfb
+        if (ttfb != null) {
+            payload["ttfb"] = ttfb.map {
                 mapOf(
                     "processor" to it.processor,
                     "value" to it.value,
