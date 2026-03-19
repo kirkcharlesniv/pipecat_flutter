@@ -7,6 +7,10 @@ class _FakePlatform extends PipecatFlutterPlatform {
   final timelineController = StreamController<TimelineEvent>.broadcast();
   final localAudioController = StreamController<AudioLevel>.broadcast();
   final remoteAudioController = StreamController<AudioLevel>.broadcast();
+  String? lastFunctionName;
+  String? lastToolCallId;
+  String? lastArgumentsJson;
+  String? lastResultJson;
 
   @override
   Stream<TimelineEvent> get timelineEventStream => timelineController.stream;
@@ -36,7 +40,12 @@ class _FakePlatform extends PipecatFlutterPlatform {
     required String toolCallId,
     required String argumentsJson,
     required String resultJson,
-  }) async {}
+  }) async {
+    lastFunctionName = functionName;
+    lastToolCallId = toolCallId;
+    lastArgumentsJson = argumentsJson;
+    lastResultJson = resultJson;
+  }
 
   @override
   Future<void> startAndConnect(StartBotParams params) async {}
@@ -154,6 +163,20 @@ void main() {
 
       expect(botLlm, hasLength(1));
       expect(botLlm.single.text, 'hello world');
+    });
+
+    test('sendLlmFunctionCallResult forwards payload unchanged', () async {
+      await PipecatFlutter.instance.sendLlmFunctionCallResult(
+        functionName: 'select_coach',
+        toolCallId: 'tool-123',
+        argumentsJson: '{"coachSlug":"john"}',
+        resultJson: '{"ok":true}',
+      );
+
+      expect(fakePlatform.lastFunctionName, 'select_coach');
+      expect(fakePlatform.lastToolCallId, 'tool-123');
+      expect(fakePlatform.lastArgumentsJson, '{"coachSlug":"john"}');
+      expect(fakePlatform.lastResultJson, '{"ok":true}');
     });
   });
 }

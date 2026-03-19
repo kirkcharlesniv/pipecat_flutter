@@ -802,7 +802,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                         event = LlmFunctionCallEvent(
                             functionName = functionCallData.functionName,
                             toolCallId = functionCallData.toolCallID,
-                            argumentsJson = functionCallData.args.toString(),
+                            argumentsJson = valueToCanonicalJson(functionCallData.args) ?: "{}",
                         ),
                         sessionEpoch = sessionEpoch,
                     )
