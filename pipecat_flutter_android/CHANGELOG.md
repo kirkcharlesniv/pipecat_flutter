@@ -1,3 +1,7 @@
+## 2.0.3
+
+- Fix: type mismatch for LLMFunctionCallData.args after pipecat client SDK update (Value? → JsonElement)
+
 ## 2.0.2
 
 - feat: send LLM tool call result
