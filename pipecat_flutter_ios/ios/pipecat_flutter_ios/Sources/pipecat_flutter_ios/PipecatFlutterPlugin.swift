@@ -294,12 +294,12 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     do {
       let argumentsValue = try decodeRtviValue(from: parameters.argumentsJson)
       let resultValue = try decodeRtviValue(from: parameters.resultJson)
-      let resultData = try LLMFunctionCallResult(
-        functionName: parameters.functionName,
-        toolCallID: parameters.toolCallId,
-        arguments: argumentsValue,
-        result: resultValue
-      ).convertToRtviValue()
+      let resultData: Value = [
+        "function_name": .string(parameters.functionName),
+        "tool_call_id": .string(parameters.toolCallId),
+        "arguments": argumentsValue,
+        "result": resultValue,
+      ]
 
       let message = RTVIMessageOutbound(
         type: RTVIMessageOutbound.MessageType.LLM_FUNCTION_CALL_RESULT,
