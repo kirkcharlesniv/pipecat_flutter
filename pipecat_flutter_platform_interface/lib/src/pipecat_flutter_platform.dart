@@ -51,6 +51,14 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
     bool? runImmediately,
     bool? audioResponse,
   });
+
+  /// Send an LLM function call result directly using RTVI standard message.
+  Future<void> sendLlmFunctionCallResult({
+    required String functionName,
+    required String toolCallId,
+    required String argumentsJson,
+    required String resultJson,
+  });
 }
 
 /// Default implementation using Pigeon-generated code
@@ -103,6 +111,16 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
     bool? audioResponse,
   }) => throw UnimplementedError(
     'sendText has not been implemented for this platform.',
+  );
+
+  @override
+  Future<void> sendLlmFunctionCallResult({
+    required String functionName,
+    required String toolCallId,
+    required String argumentsJson,
+    required String resultJson,
+  }) => throw UnimplementedError(
+    'sendLlmFunctionCallResult has not been implemented for this platform.',
   );
 
   @override

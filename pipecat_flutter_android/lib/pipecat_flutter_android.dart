@@ -60,6 +60,23 @@ class PipecatFlutterAndroid extends PipecatFlutterPlatform {
   }
 
   @override
+  Future<void> sendLlmFunctionCallResult({
+    required String functionName,
+    required String toolCallId,
+    required String argumentsJson,
+    required String resultJson,
+  }) {
+    return _hostApi.sendLlmFunctionCallResult(
+      SendLlmFunctionCallResultParams(
+        functionName: functionName,
+        toolCallId: toolCallId,
+        argumentsJson: argumentsJson,
+        resultJson: resultJson,
+      ),
+    );
+  }
+
+  @override
   Stream<TimelineEvent> get timelineEventStream {
     _timelineStream ??= timelineEvents();
     return _timelineStream!;

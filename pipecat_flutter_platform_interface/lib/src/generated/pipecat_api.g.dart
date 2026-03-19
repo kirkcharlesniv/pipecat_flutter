@@ -204,6 +204,68 @@ class SendTextParams {
   int get hashCode => Object.hashAll(_toList());
 }
 
+/// Parameters for sending LLM function call result using RTVI standard message.
+class SendLlmFunctionCallResultParams {
+  SendLlmFunctionCallResultParams({
+    required this.functionName,
+    required this.toolCallId,
+    required this.argumentsJson,
+    required this.resultJson,
+  });
+
+  /// Function name from the original LLM function call.
+  String functionName;
+
+  /// Tool call identifier from the original LLM function call.
+  String toolCallId;
+
+  /// JSON-serialized arguments from the original function call.
+  String argumentsJson;
+
+  /// JSON-serialized function result payload.
+  String resultJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      functionName,
+      toolCallId,
+      argumentsJson,
+      resultJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static SendLlmFunctionCallResultParams decode(Object result) {
+    result as List<Object?>;
+    return SendLlmFunctionCallResultParams(
+      functionName: result[0]! as String,
+      toolCallId: result[1]! as String,
+      argumentsJson: result[2]! as String,
+      resultJson: result[3]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SendLlmFunctionCallResultParams ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
 /// Events that the client receives on a session.
 sealed class PipecatEvent {}
 
@@ -602,6 +664,61 @@ class BotTTSText extends PipecatEvent {
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
     if (other is! BotTTSText || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+/// LLM function call request from the bot.
+///
+/// Emitted when the runtime asks the client to execute a function/tool.
+class LlmFunctionCallEvent extends PipecatEvent {
+  LlmFunctionCallEvent({
+    required this.functionName,
+    required this.toolCallId,
+    required this.argumentsJson,
+  });
+
+  String functionName;
+
+  String toolCallId;
+
+  /// Deterministically-serialized JSON arguments payload.
+  String argumentsJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      functionName,
+      toolCallId,
+      argumentsJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static LlmFunctionCallEvent decode(Object result) {
+    result as List<Object?>;
+    return LlmFunctionCallEvent(
+      functionName: result[0]! as String,
+      toolCallId: result[1]! as String,
+      argumentsJson: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! LlmFunctionCallEvent || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -1028,56 +1145,62 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is SendTextParams) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is ConnectionStateEvent) {
+    } else if (value is SendLlmFunctionCallResultParams) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is BackendErrorEvent) {
+    } else if (value is ConnectionStateEvent) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is UserTranscriptionEvent) {
+    } else if (value is BackendErrorEvent) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is BotOutputEvent) {
+    } else if (value is UserTranscriptionEvent) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else if (value is SpeakingEvent) {
+    } else if (value is BotOutputEvent) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else if (value is ServerInsightEvent) {
+    } else if (value is SpeakingEvent) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    } else if (value is UserLLMText) {
+    } else if (value is ServerInsightEvent) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    } else if (value is BotLLMText) {
+    } else if (value is UserLLMText) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    } else if (value is BotTTSText) {
+    } else if (value is BotLLMText) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    } else if (value is InputStatusUpdatedEvent) {
+    } else if (value is BotTTSText) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    } else if (value is BotConnectionEvent) {
+    } else if (value is LlmFunctionCallEvent) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    } else if (value is BotReadyEvent) {
+    } else if (value is InputStatusUpdatedEvent) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    } else if (value is ServerMessageEvent) {
+    } else if (value is BotConnectionEvent) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is PipecatMetricSample) {
+    } else if (value is BotReadyEvent) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    } else if (value is MetricsEvent) {
+    } else if (value is ServerMessageEvent) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is TimelineEvent) {
+    } else if (value is PipecatMetricSample) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is AudioLevel) {
+    } else if (value is MetricsEvent) {
       buffer.putUint8(151);
+      writeValue(buffer, value.encode());
+    } else if (value is TimelineEvent) {
+      buffer.putUint8(152);
+      writeValue(buffer, value.encode());
+    } else if (value is AudioLevel) {
+      buffer.putUint8(153);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1104,38 +1227,42 @@ class _PigeonCodec extends StandardMessageCodec {
       case 134:
         return SendTextParams.decode(readValue(buffer)!);
       case 135:
-        return ConnectionStateEvent.decode(readValue(buffer)!);
+        return SendLlmFunctionCallResultParams.decode(readValue(buffer)!);
       case 136:
-        return BackendErrorEvent.decode(readValue(buffer)!);
+        return ConnectionStateEvent.decode(readValue(buffer)!);
       case 137:
-        return UserTranscriptionEvent.decode(readValue(buffer)!);
+        return BackendErrorEvent.decode(readValue(buffer)!);
       case 138:
-        return BotOutputEvent.decode(readValue(buffer)!);
+        return UserTranscriptionEvent.decode(readValue(buffer)!);
       case 139:
-        return SpeakingEvent.decode(readValue(buffer)!);
+        return BotOutputEvent.decode(readValue(buffer)!);
       case 140:
-        return ServerInsightEvent.decode(readValue(buffer)!);
+        return SpeakingEvent.decode(readValue(buffer)!);
       case 141:
-        return UserLLMText.decode(readValue(buffer)!);
+        return ServerInsightEvent.decode(readValue(buffer)!);
       case 142:
-        return BotLLMText.decode(readValue(buffer)!);
+        return UserLLMText.decode(readValue(buffer)!);
       case 143:
-        return BotTTSText.decode(readValue(buffer)!);
+        return BotLLMText.decode(readValue(buffer)!);
       case 144:
-        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
+        return BotTTSText.decode(readValue(buffer)!);
       case 145:
-        return BotConnectionEvent.decode(readValue(buffer)!);
+        return LlmFunctionCallEvent.decode(readValue(buffer)!);
       case 146:
-        return BotReadyEvent.decode(readValue(buffer)!);
+        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
       case 147:
-        return ServerMessageEvent.decode(readValue(buffer)!);
+        return BotConnectionEvent.decode(readValue(buffer)!);
       case 148:
-        return PipecatMetricSample.decode(readValue(buffer)!);
+        return BotReadyEvent.decode(readValue(buffer)!);
       case 149:
-        return MetricsEvent.decode(readValue(buffer)!);
+        return ServerMessageEvent.decode(readValue(buffer)!);
       case 150:
-        return TimelineEvent.decode(readValue(buffer)!);
+        return PipecatMetricSample.decode(readValue(buffer)!);
       case 151:
+        return MetricsEvent.decode(readValue(buffer)!);
+      case 152:
+        return TimelineEvent.decode(readValue(buffer)!);
+      case 153:
         return AudioLevel.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1295,6 +1422,34 @@ class PipecatHostApi {
   Future<void> sendText(SendTextParams parameters) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendText$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[parameters],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Send LLM function call result to the bot following RTVI message schema.
+  Future<void> sendLlmFunctionCallResult(
+    SendLlmFunctionCallResultParams parameters,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendLlmFunctionCallResult$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

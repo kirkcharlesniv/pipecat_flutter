@@ -72,6 +72,28 @@ class SendTextParams {
   final bool? audioResponse;
 }
 
+/// Parameters for sending LLM function call result using RTVI standard message.
+class SendLlmFunctionCallResultParams {
+  const SendLlmFunctionCallResultParams({
+    required this.functionName,
+    required this.toolCallId,
+    required this.argumentsJson,
+    required this.resultJson,
+  });
+
+  /// Function name from the original LLM function call.
+  final String functionName;
+
+  /// Tool call identifier from the original LLM function call.
+  final String toolCallId;
+
+  /// JSON-serialized arguments from the original function call.
+  final String argumentsJson;
+
+  /// JSON-serialized function result payload.
+  final String resultJson;
+}
+
 @HostApi()
 abstract class PipecatHostApi {
   /// Starts the session and connects to your transport
@@ -102,6 +124,10 @@ abstract class PipecatHostApi {
   /// Send typed text input to the bot.
   @async
   void sendText(SendTextParams parameters);
+
+  /// Send LLM function call result to the bot following RTVI message schema.
+  @async
+  void sendLlmFunctionCallResult(SendLlmFunctionCallResultParams parameters);
 }
 
 // ==== EVENTS
@@ -219,6 +245,23 @@ final class BotTTSText extends PipecatEvent {
   BotTTSText({required this.text});
 
   final String text;
+}
+
+/// LLM function call request from the bot.
+///
+/// Emitted when the runtime asks the client to execute a function/tool.
+final class LlmFunctionCallEvent extends PipecatEvent {
+  LlmFunctionCallEvent({
+    required this.functionName,
+    required this.toolCallId,
+    required this.argumentsJson,
+  });
+
+  final String functionName;
+  final String toolCallId;
+
+  /// Deterministically-serialized JSON arguments payload.
+  final String argumentsJson;
 }
 
 final class InputStatusUpdatedEvent extends PipecatEvent {

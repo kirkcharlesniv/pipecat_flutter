@@ -258,6 +258,49 @@ struct SendTextParams: Hashable {
   }
 }
 
+/// Parameters for sending LLM function call result using RTVI standard message.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct SendLlmFunctionCallResultParams: Hashable {
+  /// Function name from the original LLM function call.
+  var functionName: String
+  /// Tool call identifier from the original LLM function call.
+  var toolCallId: String
+  /// JSON-serialized arguments from the original function call.
+  var argumentsJson: String
+  /// JSON-serialized function result payload.
+  var resultJson: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SendLlmFunctionCallResultParams? {
+    let functionName = pigeonVar_list[0] as! String
+    let toolCallId = pigeonVar_list[1] as! String
+    let argumentsJson = pigeonVar_list[2] as! String
+    let resultJson = pigeonVar_list[3] as! String
+
+    return SendLlmFunctionCallResultParams(
+      functionName: functionName,
+      toolCallId: toolCallId,
+      argumentsJson: argumentsJson,
+      resultJson: resultJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      functionName,
+      toolCallId,
+      argumentsJson,
+      resultJson,
+    ]
+  }
+  static func == (lhs: SendLlmFunctionCallResultParams, rhs: SendLlmFunctionCallResultParams) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
 /// Events that the client receives on a session.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -526,6 +569,44 @@ struct BotTTSText: PipecatEvent {
     ]
   }
   static func == (lhs: BotTTSText, rhs: BotTTSText) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// LLM function call request from the bot.
+///
+/// Emitted when the runtime asks the client to execute a function/tool.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct LlmFunctionCallEvent: PipecatEvent {
+  var functionName: String
+  var toolCallId: String
+  /// Deterministically-serialized JSON arguments payload.
+  var argumentsJson: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> LlmFunctionCallEvent? {
+    let functionName = pigeonVar_list[0] as! String
+    let toolCallId = pigeonVar_list[1] as! String
+    let argumentsJson = pigeonVar_list[2] as! String
+
+    return LlmFunctionCallEvent(
+      functionName: functionName,
+      toolCallId: toolCallId,
+      argumentsJson: argumentsJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      functionName,
+      toolCallId,
+      argumentsJson,
+    ]
+  }
+  static func == (lhs: LlmFunctionCallEvent, rhs: LlmFunctionCallEvent) -> Bool {
     return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashPipecatApi(value: toList(), hasher: &hasher)
@@ -814,38 +895,42 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
     case 134:
       return SendTextParams.fromList(self.readValue() as! [Any?])
     case 135:
-      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
+      return SendLlmFunctionCallResultParams.fromList(self.readValue() as! [Any?])
     case 136:
-      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
+      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
     case 137:
-      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
+      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
     case 138:
-      return BotOutputEvent.fromList(self.readValue() as! [Any?])
+      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
     case 139:
-      return SpeakingEvent.fromList(self.readValue() as! [Any?])
+      return BotOutputEvent.fromList(self.readValue() as! [Any?])
     case 140:
-      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
+      return SpeakingEvent.fromList(self.readValue() as! [Any?])
     case 141:
-      return UserLLMText.fromList(self.readValue() as! [Any?])
+      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
     case 142:
-      return BotLLMText.fromList(self.readValue() as! [Any?])
+      return UserLLMText.fromList(self.readValue() as! [Any?])
     case 143:
-      return BotTTSText.fromList(self.readValue() as! [Any?])
+      return BotLLMText.fromList(self.readValue() as! [Any?])
     case 144:
-      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
+      return BotTTSText.fromList(self.readValue() as! [Any?])
     case 145:
-      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallEvent.fromList(self.readValue() as! [Any?])
     case 146:
-      return BotReadyEvent.fromList(self.readValue() as! [Any?])
+      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
     case 147:
-      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
+      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
     case 148:
-      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
+      return BotReadyEvent.fromList(self.readValue() as! [Any?])
     case 149:
-      return MetricsEvent.fromList(self.readValue() as! [Any?])
+      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
     case 150:
-      return TimelineEvent.fromList(self.readValue() as! [Any?])
+      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
     case 151:
+      return MetricsEvent.fromList(self.readValue() as! [Any?])
+    case 152:
+      return TimelineEvent.fromList(self.readValue() as! [Any?])
+    case 153:
       return AudioLevel.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -873,56 +958,62 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? SendTextParams {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionStateEvent {
+    } else if let value = value as? SendLlmFunctionCallResultParams {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? BackendErrorEvent {
+    } else if let value = value as? ConnectionStateEvent {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? UserTranscriptionEvent {
+    } else if let value = value as? BackendErrorEvent {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? BotOutputEvent {
+    } else if let value = value as? UserTranscriptionEvent {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakingEvent {
+    } else if let value = value as? BotOutputEvent {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerInsightEvent {
+    } else if let value = value as? SpeakingEvent {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? UserLLMText {
+    } else if let value = value as? ServerInsightEvent {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? BotLLMText {
+    } else if let value = value as? UserLLMText {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? BotTTSText {
+    } else if let value = value as? BotLLMText {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? InputStatusUpdatedEvent {
+    } else if let value = value as? BotTTSText {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? BotConnectionEvent {
+    } else if let value = value as? LlmFunctionCallEvent {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? BotReadyEvent {
+    } else if let value = value as? InputStatusUpdatedEvent {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerMessageEvent {
+    } else if let value = value as? BotConnectionEvent {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? PipecatMetricSample {
+    } else if let value = value as? BotReadyEvent {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? MetricsEvent {
+    } else if let value = value as? ServerMessageEvent {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? TimelineEvent {
+    } else if let value = value as? PipecatMetricSample {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioLevel {
+    } else if let value = value as? MetricsEvent {
       super.writeByte(151)
+      super.writeValue(value.toList())
+    } else if let value = value as? TimelineEvent {
+      super.writeByte(152)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioLevel {
+      super.writeByte(153)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -962,6 +1053,8 @@ protocol PipecatHostApi {
   func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   /// Send typed text input to the bot.
   func sendText(parameters: SendTextParams, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Send LLM function call result to the bot following RTVI message schema.
+  func sendLlmFunctionCallResult(parameters: SendLlmFunctionCallResultParams, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1074,6 +1167,24 @@ class PipecatHostApiSetup {
       }
     } else {
       sendTextChannel.setMessageHandler(nil)
+    }
+    /// Send LLM function call result to the bot following RTVI message schema.
+    let sendLlmFunctionCallResultChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendLlmFunctionCallResult\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      sendLlmFunctionCallResultChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let parametersArg = args[0] as! SendLlmFunctionCallResultParams
+        api.sendLlmFunctionCallResult(parameters: parametersArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      sendLlmFunctionCallResultChannel.setMessageHandler(nil)
     }
   }
 }

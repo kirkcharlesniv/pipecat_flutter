@@ -6,9 +6,12 @@ import ai.pipecat.client.PipecatEventCallbacks
 import ai.pipecat.client.daily.DailyTransport
 import ai.pipecat.client.daily.DailyTransportConnectParams
 import ai.pipecat.client.result.Result as PipecatResult
+import ai.pipecat.client.transport.MsgClientToServer
 import ai.pipecat.client.transport.MsgServerToClient
 import ai.pipecat.client.types.BotOutputData
 import ai.pipecat.client.types.BotReadyData
+import ai.pipecat.client.types.LLMFunctionCallData
+import ai.pipecat.client.types.LLMFunctionCallResult
 import ai.pipecat.client.types.Participant
 import ai.pipecat.client.types.PipecatMetrics
 import ai.pipecat.client.types.PipecatMetricsData
@@ -24,6 +27,9 @@ import co.daily.model.RemoteInputsEnabledUpdate
 import co.daily.model.RemoteParticipantUpdate
 import com.kcniverba.pipecat_flutter_android.*
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import org.json.JSONObject
 
 class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
@@ -340,6 +346,54 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
     }
 
+    override fun sendLlmFunctionCallResult(
+        parameters: SendLlmFunctionCallResultParams,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        val dailyTransport = transport ?: run {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_TRANSPORT",
+                        message = "Transport not available",
+                    )
+                )
+            )
+            return
+        }
+
+        val arguments = parseJsonElement(parameters.argumentsJson)
+        val result = parseJsonElement(parameters.resultJson)
+
+        val message = MsgClientToServer.LlmFunctionCallResult(
+            msgId = java.util.UUID.randomUUID().toString(),
+            data = LLMFunctionCallResult(
+                functionName = parameters.functionName,
+                toolCallID = parameters.toolCallId,
+                arguments = arguments,
+                result = result,
+            )
+        )
+
+        dailyTransport.sendMessage(message).withCallback { sendResult ->
+            runOnMain {
+                when (sendResult) {
+                    is PipecatResult.Ok -> callback(Result.success(Unit))
+                    is PipecatResult.Err -> {
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "SEND_FUNCTION_RESULT_ERROR",
+                                    message = sendResult.error.toString(),
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun beginNewSessionEpoch(): Long {
         activeSessionEpoch += 1
         sequenceCounter = 0
@@ -516,6 +570,17 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             }
 
             else -> JSONObject.quote(value.toString())
+        }
+    }
+
+    private fun parseJsonElement(rawJson: String?): JsonElement {
+        if (rawJson == null) return JsonNull
+        val trimmed = rawJson.trim()
+        if (trimmed.isEmpty()) return JsonNull
+        return try {
+            Json.parseToJsonElement(trimmed)
+        } catch (_: Exception) {
+            JsonNull
         }
     }
 
@@ -725,6 +790,20 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
                     emitTimelineEvent(
                         event = BotTTSText(text = data.text),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onLLMFunctionCall(functionCallData: LLMFunctionCallData) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = LlmFunctionCallEvent(
+                            functionName = functionCallData.functionName,
+                            toolCallId = functionCallData.toolCallID,
+                            argumentsJson = functionCallData.args.toString(),
+                        ),
                         sessionEpoch = sessionEpoch,
                     )
                 }

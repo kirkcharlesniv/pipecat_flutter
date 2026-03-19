@@ -146,6 +146,21 @@ class PipecatFlutter {
     );
   }
 
+  /// Send LLM function call result using RTVI `llm-function-call-result`.
+  Future<void> sendLlmFunctionCallResult({
+    required String functionName,
+    required String toolCallId,
+    required String argumentsJson,
+    required String resultJson,
+  }) {
+    return _platform.sendLlmFunctionCallResult(
+      functionName: functionName,
+      toolCallId: toolCallId,
+      argumentsJson: argumentsJson,
+      resultJson: resultJson,
+    );
+  }
+
   /// Local user's microphone level (0.0 - 1.0)
   /// Updates at ~50-100ms intervals when connected
   Stream<double> get localAudioLevel =>

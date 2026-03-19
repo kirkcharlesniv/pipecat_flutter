@@ -31,6 +31,14 @@ class _FakePlatform extends PipecatFlutterPlatform {
   }) async {}
 
   @override
+  Future<void> sendLlmFunctionCallResult({
+    required String functionName,
+    required String toolCallId,
+    required String argumentsJson,
+    required String resultJson,
+  }) async {}
+
+  @override
   Future<void> startAndConnect(StartBotParams params) async {}
 
   @override

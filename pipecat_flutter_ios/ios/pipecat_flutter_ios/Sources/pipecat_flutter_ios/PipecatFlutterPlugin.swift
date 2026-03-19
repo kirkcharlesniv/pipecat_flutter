@@ -274,6 +274,52 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
+  func sendLlmFunctionCallResult(
+    parameters: SendLlmFunctionCallResultParams,
+    completion: @escaping (Result<Void, Error>) -> Void
+  ) {
+    guard let dailyTransport = client?.transport as? DailyTransport else {
+      completion(
+        .failure(
+          PigeonError(
+            code: "NO_TRANSPORT",
+            message: "Transport not available",
+            details: nil
+          )
+        )
+      )
+      return
+    }
+
+    do {
+      let argumentsValue = try decodeRtviValue(from: parameters.argumentsJson)
+      let resultValue = try decodeRtviValue(from: parameters.resultJson)
+      let resultData = try LLMFunctionCallResult(
+        functionName: parameters.functionName,
+        toolCallID: parameters.toolCallId,
+        arguments: argumentsValue,
+        result: resultValue
+      ).convertToRtviValue()
+
+      let message = RTVIMessageOutbound(
+        type: RTVIMessageOutbound.MessageType.LLM_FUNCTION_CALL_RESULT,
+        data: resultData
+      )
+      try dailyTransport.sendMessage(message: message)
+      completion(.success(()))
+    } catch {
+      completion(
+        .failure(
+          PigeonError(
+            code: "SEND_FUNCTION_RESULT_ERROR",
+            message: error.localizedDescription,
+            details: nil
+          )
+        )
+      )
+    }
+  }
+
   // MARK: - PipecatClientDelegate
 
   public func onConnected() {
@@ -427,6 +473,21 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     guard isSessionActive else { return }
     emitTimelineEvent(
       event: BotTTSText(text: data.text),
+      sessionEpoch: activeSessionEpoch
+    )
+  }
+
+  public func onLLMFunctionCall(
+    functionCallData: LLMFunctionCallData,
+    onResult: ((Value) async -> Void)
+  ) async {
+    guard isSessionActive else { return }
+    emitTimelineEvent(
+      event: LlmFunctionCallEvent(
+        functionName: functionCallData.functionName,
+        toolCallId: functionCallData.toolCallID,
+        argumentsJson: canonicalJSONString(from: functionCallData.args) ?? "{}"
+      ),
       sessionEpoch: activeSessionEpoch
     )
   }
@@ -682,6 +743,15 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     let mirror = Mirror(reflecting: value)
     guard mirror.displayStyle == .optional else { return value }
     return mirror.children.first?.value
+  }
+
+  private func decodeRtviValue(from json: String) throws -> Value {
+    let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
+    let candidate = trimmed.isEmpty ? "{}" : trimmed
+    guard let data = candidate.data(using: .utf8) else {
+      throw PigeonError(code: "INVALID_JSON", message: "Invalid UTF-8 JSON", details: nil)
+    }
+    return try JSONDecoder().decode(Value.self, from: data)
   }
 
   private func canonicalJSONString(from value: Value?) -> String? {
