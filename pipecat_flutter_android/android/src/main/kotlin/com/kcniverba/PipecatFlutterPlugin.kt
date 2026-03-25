@@ -173,6 +173,11 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                     }
 
                     is PipecatResult.Err -> {
+                        if (client === currentClient) {
+                            cleanupClient(release = true)
+                        }
+                        isBotAudioMuted = false
+                        emitDisconnectedIfNeeded(sessionEpoch)
                         callback(
                             Result.failure(
                                 FlutterError(
@@ -262,49 +267,60 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     }
 
     override fun muteBotAudio(isMuted: Boolean, callback: (Result<Unit>) -> Unit) {
-        val dailyTransport = transport ?: run {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        code = "NO_CLIENT",
-                        message = "Client or transport not available",
+        runOnMain {
+            val dailyTransport = transport ?: run {
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            code = "NO_CLIENT",
+                            message = "Client or transport not available",
+                        )
                     )
                 )
-            )
-            return
-        }
+                return@runOnMain
+            }
 
-        try {
-            val callClient = dailyTransport.callClient
-                ?: throw IllegalStateException("CallClient not available")
-
-            val remoteParticipants = callClient.participants().all.values
-                .filter { !it.info.isLocal }
-
-            for (participant in remoteParticipants) {
-                callClient.updateRemoteParticipants(
-                    mapOf(
-                        participant.id to RemoteParticipantUpdate(
-                            inputsEnabled = RemoteInputsEnabledUpdate(
-                                microphone = !isMuted,
+            try {
+                val callClient = dailyTransport.callClient ?: run {
+                    callback(
+                        Result.failure(
+                            FlutterError(
+                                code = "NO_CLIENT",
+                                message = "CallClient not available",
                             )
+                        )
+                    )
+                    return@runOnMain
+                }
+
+                val remoteParticipants = callClient.participants()?.all?.values
+                    ?.filter { !it.info.isLocal } ?: emptyList()
+
+                for (participant in remoteParticipants) {
+                    callClient.updateRemoteParticipants(
+                        mapOf(
+                            participant.id to RemoteParticipantUpdate(
+                                inputsEnabled = RemoteInputsEnabledUpdate(
+                                    microphone = !isMuted,
+                                )
+                            )
+                        )
+                    )
+                }
+
+                isBotAudioMuted = isMuted
+                updateInputState(activeSessionEpoch)
+                callback(Result.success(Unit))
+            } catch (e: Exception) {
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            code = "MUTE_ERROR",
+                            message = e.localizedMessage ?: e.toString(),
                         )
                     )
                 )
             }
-
-            isBotAudioMuted = isMuted
-            updateInputState(activeSessionEpoch)
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        code = "MUTE_ERROR",
-                        message = e.localizedMessage ?: e.toString(),
-                    )
-                )
-            )
         }
     }
 
@@ -416,11 +432,15 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     private fun cleanupClient(release: Boolean) {
         val existing = client
-        if (release && existing != null) {
-            existing.release()
-        }
         client = null
         transport = null
+        if (release && existing != null) {
+            try {
+                existing.release()
+            } catch (_: Exception) {
+                // Swallow — native resources may already be invalid after connection failure
+            }
+        }
     }
 
     private fun emitDisconnectedIfNeeded(sessionEpoch: Long) {
