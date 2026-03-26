@@ -1,3 +1,7 @@
+## 2.0.5
+
+- Fix: Delay call of release() on failed connection
+
 ## 2.0.4
 
 - Fix: SIGSEGV

@@ -425,9 +425,23 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     private fun cleanupFailedConnect(sessionEpoch: Long) {
         if (!isCurrentEpoch(sessionEpoch)) return
-        cleanupClient(release = true)
+
+        val staleClient = client
+        client = null
+        transport = null
         isBotAudioMuted = false
         emitDisconnectedIfNeeded(sessionEpoch)
+
+        // Delay release() to let native threads finish after a connection failure.
+        // Calling release() immediately can cause a SIGSEGV in libdaily-android-sdk.so
+        // when its worker thread accesses freed memory.
+        if (staleClient != null) {
+            mainHandler.postDelayed({
+                try {
+                    staleClient.release()
+                } catch (_: Exception) {}
+            }, 5000)
+        }
     }
 
     private fun cleanupClient(release: Boolean) {
