@@ -59,6 +59,12 @@ abstract class PipecatFlutterPlatform extends PlatformInterface {
     required String argumentsJson,
     required String resultJson,
   });
+
+  /// Send a custom RTVI client-message payload.
+  Future<void> sendClientMessage({
+    required String msgType,
+    required String dataJson,
+  });
 }
 
 /// Default implementation using Pigeon-generated code
@@ -121,6 +127,14 @@ class _DefaultPipecatFlutterPlatform extends PipecatFlutterPlatform {
     required String resultJson,
   }) => throw UnimplementedError(
     'sendLlmFunctionCallResult has not been implemented for this platform.',
+  );
+
+  @override
+  Future<void> sendClientMessage({
+    required String msgType,
+    required String dataJson,
+  }) => throw UnimplementedError(
+    'sendClientMessage has not been implemented for this platform.',
   );
 
   @override

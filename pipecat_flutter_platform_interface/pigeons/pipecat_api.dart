@@ -94,6 +94,20 @@ class SendLlmFunctionCallResultParams {
   final String resultJson;
 }
 
+/// Parameters for sending a custom RTVI client-message payload.
+class SendClientMessageParams {
+  const SendClientMessageParams({
+    required this.msgType,
+    required this.dataJson,
+  });
+
+  /// Custom client message type.
+  final String msgType;
+
+  /// JSON-serialized payload for the custom message.
+  final String dataJson;
+}
+
 @HostApi()
 abstract class PipecatHostApi {
   /// Starts the session and connects to your transport
@@ -128,6 +142,10 @@ abstract class PipecatHostApi {
   /// Send LLM function call result to the bot following RTVI message schema.
   @async
   void sendLlmFunctionCallResult(SendLlmFunctionCallResultParams parameters);
+
+  /// Send a custom RTVI client-message payload to the bot.
+  @async
+  void sendClientMessage(SendClientMessageParams parameters);
 }
 
 // ==== EVENTS

@@ -161,6 +161,17 @@ class PipecatFlutter {
     );
   }
 
+  /// Send a custom RTVI `client-message`.
+  Future<void> sendClientMessage({
+    required String msgType,
+    required String dataJson,
+  }) {
+    return _platform.sendClientMessage(
+      msgType: msgType,
+      dataJson: dataJson,
+    );
+  }
+
   /// Local user's microphone level (0.0 - 1.0)
   /// Updates at ~50-100ms intervals when connected
   Stream<double> get localAudioLevel =>

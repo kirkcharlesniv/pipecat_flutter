@@ -77,6 +77,19 @@ class PipecatFlutterIOS extends PipecatFlutterPlatform {
   }
 
   @override
+  Future<void> sendClientMessage({
+    required String msgType,
+    required String dataJson,
+  }) {
+    return _hostApi.sendClientMessage(
+      SendClientMessageParams(
+        msgType: msgType,
+        dataJson: dataJson,
+      ),
+    );
+  }
+
+  @override
   Stream<TimelineEvent> get timelineEventStream {
     _timelineStream ??= timelineEvents();
     return _timelineStream!;

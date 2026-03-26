@@ -320,6 +320,44 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
+  func sendClientMessage(
+    parameters: SendClientMessageParams,
+    completion: @escaping (Result<Void, Error>) -> Void
+  ) {
+    guard let dailyTransport = client?.transport as? DailyTransport else {
+      completion(
+        .failure(
+          PigeonError(
+            code: "NO_TRANSPORT",
+            message: "Transport not available",
+            details: nil
+          )
+        )
+      )
+      return
+    }
+
+    do {
+      let dataValue = try decodeRtviValue(from: parameters.dataJson)
+      let message = RTVIMessageOutbound.clientMessage(
+        msgType: parameters.msgType,
+        data: dataValue
+      )
+      try dailyTransport.sendMessage(message: message)
+      completion(.success(()))
+    } catch {
+      completion(
+        .failure(
+          PigeonError(
+            code: "SEND_CLIENT_MESSAGE_ERROR",
+            message: error.localizedDescription,
+            details: nil
+          )
+        )
+      )
+    }
+  }
+
   // MARK: - PipecatClientDelegate
 
   public func onConnected() {

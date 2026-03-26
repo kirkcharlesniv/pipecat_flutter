@@ -410,6 +410,48 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
     }
 
+    override fun sendClientMessage(
+        parameters: SendClientMessageParams,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        val dailyTransport = transport ?: run {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_TRANSPORT",
+                        message = "Transport not available",
+                    )
+                )
+            )
+            return
+        }
+
+        val data = parseJsonElement(parameters.dataJson)
+        val message = MsgClientToServer.ClientMessage(
+            id = java.util.UUID.randomUUID().toString(),
+            msgType = parameters.msgType,
+            data = data,
+        )
+
+        dailyTransport.sendMessage(message).withCallback { sendResult ->
+            runOnMain {
+                when (sendResult) {
+                    is PipecatResult.Ok -> callback(Result.success(Unit))
+                    is PipecatResult.Err -> {
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    code = "SEND_CLIENT_MESSAGE_ERROR",
+                                    message = sendResult.error.toString(),
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun beginNewSessionEpoch(): Long {
         activeSessionEpoch += 1
         sequenceCounter = 0

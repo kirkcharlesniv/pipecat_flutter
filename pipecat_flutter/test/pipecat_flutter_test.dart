@@ -11,6 +11,8 @@ class _FakePlatform extends PipecatFlutterPlatform {
   String? lastToolCallId;
   String? lastArgumentsJson;
   String? lastResultJson;
+  String? lastClientMessageType;
+  String? lastClientMessageDataJson;
 
   @override
   Stream<TimelineEvent> get timelineEventStream => timelineController.stream;
@@ -45,6 +47,15 @@ class _FakePlatform extends PipecatFlutterPlatform {
     lastToolCallId = toolCallId;
     lastArgumentsJson = argumentsJson;
     lastResultJson = resultJson;
+  }
+
+  @override
+  Future<void> sendClientMessage({
+    required String msgType,
+    required String dataJson,
+  }) async {
+    lastClientMessageType = msgType;
+    lastClientMessageDataJson = dataJson;
   }
 
   @override
@@ -177,6 +188,19 @@ void main() {
       expect(fakePlatform.lastToolCallId, 'tool-123');
       expect(fakePlatform.lastArgumentsJson, '{"coachSlug":"john"}');
       expect(fakePlatform.lastResultJson, '{"ok":true}');
+    });
+
+    test('sendClientMessage forwards payload unchanged', () async {
+      await PipecatFlutter.instance.sendClientMessage(
+        msgType: 'onboarding.voice_preview.request',
+        dataJson: '{"request_id":"abc"}',
+      );
+
+      expect(
+        fakePlatform.lastClientMessageType,
+        'onboarding.voice_preview.request',
+      );
+      expect(fakePlatform.lastClientMessageDataJson, '{"request_id":"abc"}');
     });
   });
 }

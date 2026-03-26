@@ -282,6 +282,43 @@ data class SendLlmFunctionCallResultParams (
 }
 
 /**
+ * Parameters for sending a custom RTVI client-message payload.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SendClientMessageParams (
+  /** Custom client message type. */
+  val msgType: String,
+  /** JSON-serialized payload for the custom message. */
+  val dataJson: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SendClientMessageParams {
+      val msgType = pigeonVar_list[0] as String
+      val dataJson = pigeonVar_list[1] as String
+      return SendClientMessageParams(msgType, dataJson)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      msgType,
+      dataJson,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is SendClientMessageParams) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
  * Events that the client receives on a session.
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -935,90 +972,95 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionStateEvent.fromList(it)
+          SendClientMessageParams.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BackendErrorEvent.fromList(it)
+          ConnectionStateEvent.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UserTranscriptionEvent.fromList(it)
+          BackendErrorEvent.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotOutputEvent.fromList(it)
+          UserTranscriptionEvent.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpeakingEvent.fromList(it)
+          BotOutputEvent.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ServerInsightEvent.fromList(it)
+          SpeakingEvent.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UserLLMText.fromList(it)
+          ServerInsightEvent.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotLLMText.fromList(it)
+          UserLLMText.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotTTSText.fromList(it)
+          BotLLMText.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          LlmFunctionCallEvent.fromList(it)
+          BotTTSText.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          InputStatusUpdatedEvent.fromList(it)
+          LlmFunctionCallEvent.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotConnectionEvent.fromList(it)
+          InputStatusUpdatedEvent.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotReadyEvent.fromList(it)
+          BotConnectionEvent.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ServerMessageEvent.fromList(it)
+          BotReadyEvent.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PipecatMetricSample.fromList(it)
+          ServerMessageEvent.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MetricsEvent.fromList(it)
+          PipecatMetricSample.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          TimelineEvent.fromList(it)
+          MetricsEvent.fromList(it)
         }
       }
       153.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          TimelineEvent.fromList(it)
+        }
+      }
+      154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           AudioLevel.fromList(it)
         }
@@ -1056,76 +1098,80 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is ConnectionStateEvent -> {
+      is SendClientMessageParams -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is BackendErrorEvent -> {
+      is ConnectionStateEvent -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is UserTranscriptionEvent -> {
+      is BackendErrorEvent -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is BotOutputEvent -> {
+      is UserTranscriptionEvent -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is SpeakingEvent -> {
+      is BotOutputEvent -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is ServerInsightEvent -> {
+      is SpeakingEvent -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is UserLLMText -> {
+      is ServerInsightEvent -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is BotLLMText -> {
+      is UserLLMText -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is BotTTSText -> {
+      is BotLLMText -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is LlmFunctionCallEvent -> {
+      is BotTTSText -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is InputStatusUpdatedEvent -> {
+      is LlmFunctionCallEvent -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is BotConnectionEvent -> {
+      is InputStatusUpdatedEvent -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is BotReadyEvent -> {
+      is BotConnectionEvent -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is ServerMessageEvent -> {
+      is BotReadyEvent -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PipecatMetricSample -> {
+      is ServerMessageEvent -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is MetricsEvent -> {
+      is PipecatMetricSample -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is TimelineEvent -> {
+      is MetricsEvent -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is AudioLevel -> {
+      is TimelineEvent -> {
         stream.write(153)
+        writeValue(stream, value.toList())
+      }
+      is AudioLevel -> {
+        stream.write(154)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1151,6 +1197,8 @@ interface PipecatHostApi {
   fun sendText(parameters: SendTextParams, callback: (Result<Unit>) -> Unit)
   /** Send LLM function call result to the bot following RTVI message schema. */
   fun sendLlmFunctionCallResult(parameters: SendLlmFunctionCallResultParams, callback: (Result<Unit>) -> Unit)
+  /** Send a custom RTVI client-message payload to the bot. */
+  fun sendClientMessage(parameters: SendClientMessageParams, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by PipecatHostApi. */
@@ -1280,6 +1328,25 @@ interface PipecatHostApi {
             val args = message as List<Any?>
             val parametersArg = args[0] as SendLlmFunctionCallResultParams
             api.sendLlmFunctionCallResult(parametersArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PipecatApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(PipecatApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendClientMessage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val parametersArg = args[0] as SendClientMessageParams
+            api.sendClientMessage(parametersArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(PipecatApiPigeonUtils.wrapError(error))
