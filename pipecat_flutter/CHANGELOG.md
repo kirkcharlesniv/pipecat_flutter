@@ -1,3 +1,7 @@
+## 2.1.0
+
+- feat: Implement `client-message`
+
 ## 2.0.2
 
 - feat: send LLM tool call result

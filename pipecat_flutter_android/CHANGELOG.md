@@ -1,3 +1,7 @@
+## 2.1.0
+
+- feat: Implement `client-message`
+
 ## 2.0.5
 
 - Fix: Delay call of release() on failed connection
