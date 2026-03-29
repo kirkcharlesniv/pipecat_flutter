@@ -358,6 +358,60 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
+  func sendClientRequest(
+    parameters: SendClientRequestParams,
+    completion: @escaping (Result<SendClientRequestResult, Error>) -> Void
+  ) {
+    guard let client else {
+      completion(
+        .failure(
+          PigeonError(
+            code: "NO_CLIENT",
+            message: "Client not available",
+            details: nil
+          )
+        )
+      )
+      return
+    }
+
+    do {
+      let dataValue = try decodeRtviValue(from: parameters.dataJson)
+      client.sendClientRequest(
+        msgType: parameters.msgType,
+        data: dataValue
+      ) { [weak self] result in
+        DispatchQueue.main.async {
+          guard let self else { return }
+
+          switch result {
+          case .success(let response):
+            completion(
+              .success(
+                SendClientRequestResult(
+                  msgType: response.t,
+                  dataJson: self.canonicalJSONString(from: response.d) ?? "null"
+                )
+              )
+            )
+          case .failure(let error):
+            completion(.failure(self.mapClientRequestError(error)))
+          }
+        }
+      }
+    } catch {
+      completion(
+        .failure(
+          PigeonError(
+            code: "SEND_CLIENT_REQUEST_ERROR",
+            message: error.localizedDescription,
+            details: nil
+          )
+        )
+      )
+    }
+  }
+
   // MARK: - PipecatClientDelegate
 
   public func onConnected() {
@@ -887,5 +941,38 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       return String(encoded.dropFirst().dropLast())
     }
     return "\"\""
+  }
+
+  private func mapClientRequestError(_ error: AsyncExecutionError) -> PigeonError {
+    let rootError = rootRtviError(error)
+    if rootError is ResponseTimeoutError {
+      return PigeonError(
+        code: "SEND_CLIENT_REQUEST_TIMEOUT",
+        message: rootError.localizedDescription,
+        details: nil
+      )
+    }
+
+    if rootError is BotResponseError {
+      return PigeonError(
+        code: "SEND_CLIENT_REQUEST_ERROR_RESPONSE",
+        message: rootError.localizedDescription,
+        details: nil
+      )
+    }
+
+    return PigeonError(
+      code: "SEND_CLIENT_REQUEST_ERROR",
+      message: error.localizedDescription,
+      details: nil
+    )
+  }
+
+  private func rootRtviError(_ error: RTVIError) -> RTVIError {
+    var current: RTVIError = error
+    while let nested = current.underlyingError as? RTVIError {
+      current = nested
+    }
+    return current
   }
 }

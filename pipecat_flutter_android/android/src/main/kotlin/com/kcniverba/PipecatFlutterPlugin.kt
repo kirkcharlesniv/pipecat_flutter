@@ -6,6 +6,7 @@ import ai.pipecat.client.PipecatEventCallbacks
 import ai.pipecat.client.daily.DailyTransport
 import ai.pipecat.client.daily.DailyTransportConnectParams
 import ai.pipecat.client.result.Result as PipecatResult
+import ai.pipecat.client.result.RTVIError
 import ai.pipecat.client.transport.MsgClientToServer
 import ai.pipecat.client.transport.MsgServerToClient
 import ai.pipecat.client.types.BotOutputData
@@ -30,6 +31,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.decodeFromJsonElement
 import org.json.JSONObject
 
 class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
@@ -452,6 +454,57 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
     }
 
+    override fun sendClientRequest(
+        parameters: SendClientRequestParams,
+        callback: (Result<SendClientRequestResult>) -> Unit
+    ) {
+        val currentClient = client ?: run {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        code = "NO_CLIENT",
+                        message = "Client not available",
+                    )
+                )
+            )
+            return
+        }
+
+        val requestData = parseJsonValue(parameters.dataJson)
+        currentClient.sendClientRequest(
+            parameters.msgType,
+            requestData,
+        ).withCallback { requestResult ->
+            runOnMain {
+                when (requestResult) {
+                    is PipecatResult.Ok -> {
+                        val responseData = requestResult.value
+                        val responseJson = Json.encodeToString(
+                            JsonElement.serializer(),
+                            responseData.data,
+                        )
+                        callback(
+                            Result.success(
+                                SendClientRequestResult(
+                                    msgType = responseData.msgType,
+                                    dataJson = responseJson,
+                                )
+                            )
+                        )
+                    }
+
+                    is PipecatResult.Err -> {
+                        callback(
+                            Result.failure(
+                                mapClientRequestError(requestResult.error)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun beginNewSessionEpoch(): Long {
         activeSessionEpoch += 1
         sequenceCounter = 0
@@ -657,6 +710,34 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             Json.parseToJsonElement(trimmed)
         } catch (_: Exception) {
             JsonNull
+        }
+    }
+
+    private fun parseJsonValue(rawJson: String?): Value {
+        val element = parseJsonElement(rawJson)
+        return try {
+            Json.decodeFromJsonElement<Value>(element)
+        } catch (_: Exception) {
+            Value.Null
+        }
+    }
+
+    private fun mapClientRequestError(error: RTVIError): FlutterError {
+        return when (error) {
+            RTVIError.Timeout -> FlutterError(
+                code = "SEND_CLIENT_REQUEST_TIMEOUT",
+                message = error.toString(),
+            )
+
+            is RTVIError.ErrorResponse -> FlutterError(
+                code = "SEND_CLIENT_REQUEST_ERROR_RESPONSE",
+                message = error.message,
+            )
+
+            else -> FlutterError(
+                code = "SEND_CLIENT_REQUEST_ERROR",
+                message = error.toString(),
+            )
         }
     }
 

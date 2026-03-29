@@ -307,6 +307,104 @@ class SendClientMessageParams {
 ;
 }
 
+/// Parameters for sending a request-style RTVI client-message payload.
+class SendClientRequestParams {
+  SendClientRequestParams({
+    required this.msgType,
+    required this.dataJson,
+  });
+
+  /// Custom client request message type.
+  String msgType;
+
+  /// JSON-serialized payload for the request.
+  String dataJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      msgType,
+      dataJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SendClientRequestParams decode(Object result) {
+    result as List<Object?>;
+    return SendClientRequestParams(
+      msgType: result[0]! as String,
+      dataJson: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SendClientRequestParams || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Result payload returned by server-response for a client request.
+class SendClientRequestResult {
+  SendClientRequestResult({
+    required this.msgType,
+    required this.dataJson,
+  });
+
+  /// Message type echoed from server response `data.t`.
+  String msgType;
+
+  /// JSON-serialized response payload from server response `data.d`.
+  String dataJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      msgType,
+      dataJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SendClientRequestResult decode(Object result) {
+    result as List<Object?>;
+    return SendClientRequestResult(
+      msgType: result[0]! as String,
+      dataJson: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SendClientRequestResult || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 /// Events that the client receives on a session.
 sealed class PipecatEvent {
 }
@@ -1194,59 +1292,65 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is SendClientMessageParams) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is ConnectionStateEvent) {
+    }    else if (value is SendClientRequestParams) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is BackendErrorEvent) {
+    }    else if (value is SendClientRequestResult) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is UserTranscriptionEvent) {
+    }    else if (value is ConnectionStateEvent) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is BotOutputEvent) {
+    }    else if (value is BackendErrorEvent) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakingEvent) {
+    }    else if (value is UserTranscriptionEvent) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is ServerInsightEvent) {
+    }    else if (value is BotOutputEvent) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is UserLLMText) {
+    }    else if (value is SpeakingEvent) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is BotLLMText) {
+    }    else if (value is ServerInsightEvent) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is BotTTSText) {
+    }    else if (value is UserLLMText) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is LlmFunctionCallEvent) {
+    }    else if (value is BotLLMText) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is InputStatusUpdatedEvent) {
+    }    else if (value is BotTTSText) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is BotConnectionEvent) {
+    }    else if (value is LlmFunctionCallEvent) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is BotReadyEvent) {
+    }    else if (value is InputStatusUpdatedEvent) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is ServerMessageEvent) {
+    }    else if (value is BotConnectionEvent) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is PipecatMetricSample) {
+    }    else if (value is BotReadyEvent) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is MetricsEvent) {
+    }    else if (value is ServerMessageEvent) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is TimelineEvent) {
+    }    else if (value is PipecatMetricSample) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioLevel) {
+    }    else if (value is MetricsEvent) {
       buffer.putUint8(154);
+      writeValue(buffer, value.encode());
+    }    else if (value is TimelineEvent) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is AudioLevel) {
+      buffer.putUint8(156);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1277,40 +1381,44 @@ class _PigeonCodec extends StandardMessageCodec {
       case 136: 
         return SendClientMessageParams.decode(readValue(buffer)!);
       case 137: 
-        return ConnectionStateEvent.decode(readValue(buffer)!);
+        return SendClientRequestParams.decode(readValue(buffer)!);
       case 138: 
-        return BackendErrorEvent.decode(readValue(buffer)!);
+        return SendClientRequestResult.decode(readValue(buffer)!);
       case 139: 
-        return UserTranscriptionEvent.decode(readValue(buffer)!);
+        return ConnectionStateEvent.decode(readValue(buffer)!);
       case 140: 
-        return BotOutputEvent.decode(readValue(buffer)!);
+        return BackendErrorEvent.decode(readValue(buffer)!);
       case 141: 
-        return SpeakingEvent.decode(readValue(buffer)!);
+        return UserTranscriptionEvent.decode(readValue(buffer)!);
       case 142: 
-        return ServerInsightEvent.decode(readValue(buffer)!);
+        return BotOutputEvent.decode(readValue(buffer)!);
       case 143: 
-        return UserLLMText.decode(readValue(buffer)!);
+        return SpeakingEvent.decode(readValue(buffer)!);
       case 144: 
-        return BotLLMText.decode(readValue(buffer)!);
+        return ServerInsightEvent.decode(readValue(buffer)!);
       case 145: 
-        return BotTTSText.decode(readValue(buffer)!);
+        return UserLLMText.decode(readValue(buffer)!);
       case 146: 
-        return LlmFunctionCallEvent.decode(readValue(buffer)!);
+        return BotLLMText.decode(readValue(buffer)!);
       case 147: 
-        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
+        return BotTTSText.decode(readValue(buffer)!);
       case 148: 
-        return BotConnectionEvent.decode(readValue(buffer)!);
+        return LlmFunctionCallEvent.decode(readValue(buffer)!);
       case 149: 
-        return BotReadyEvent.decode(readValue(buffer)!);
+        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
       case 150: 
-        return ServerMessageEvent.decode(readValue(buffer)!);
+        return BotConnectionEvent.decode(readValue(buffer)!);
       case 151: 
-        return PipecatMetricSample.decode(readValue(buffer)!);
+        return BotReadyEvent.decode(readValue(buffer)!);
       case 152: 
-        return MetricsEvent.decode(readValue(buffer)!);
+        return ServerMessageEvent.decode(readValue(buffer)!);
       case 153: 
-        return TimelineEvent.decode(readValue(buffer)!);
+        return PipecatMetricSample.decode(readValue(buffer)!);
       case 154: 
+        return MetricsEvent.decode(readValue(buffer)!);
+      case 155: 
+        return TimelineEvent.decode(readValue(buffer)!);
+      case 156: 
         return AudioLevel.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1513,6 +1621,34 @@ class PipecatHostApi {
       );
     } else {
       return;
+    }
+  }
+
+  /// Send a custom RTVI client-message request and await server-response.
+  Future<SendClientRequestResult> sendClientRequest(SendClientRequestParams parameters) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.sendClientRequest$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as SendClientRequestResult?)!;
     }
   }
 }

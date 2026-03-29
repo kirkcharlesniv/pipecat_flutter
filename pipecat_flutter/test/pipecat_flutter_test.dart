@@ -13,6 +13,8 @@ class _FakePlatform extends PipecatFlutterPlatform {
   String? lastResultJson;
   String? lastClientMessageType;
   String? lastClientMessageDataJson;
+  String? lastClientRequestType;
+  String? lastClientRequestDataJson;
 
   @override
   Stream<TimelineEvent> get timelineEventStream => timelineController.stream;
@@ -56,6 +58,19 @@ class _FakePlatform extends PipecatFlutterPlatform {
   }) async {
     lastClientMessageType = msgType;
     lastClientMessageDataJson = dataJson;
+  }
+
+  @override
+  Future<SendClientRequestResult> sendClientRequest({
+    required String msgType,
+    required String dataJson,
+  }) async {
+    lastClientRequestType = msgType;
+    lastClientRequestDataJson = dataJson;
+    return SendClientRequestResult(
+      msgType: msgType,
+      dataJson: dataJson,
+    );
   }
 
   @override
@@ -201,6 +216,18 @@ void main() {
         'onboarding.voice_preview.request',
       );
       expect(fakePlatform.lastClientMessageDataJson, '{"request_id":"abc"}');
+    });
+
+    test('sendClientRequest forwards payload and returns response', () async {
+      final result = await PipecatFlutter.instance.sendClientRequest(
+        msgType: 'onboarding.state.sync',
+        dataJson: '{"stateRevision":1}',
+      );
+
+      expect(fakePlatform.lastClientRequestType, 'onboarding.state.sync');
+      expect(fakePlatform.lastClientRequestDataJson, '{"stateRevision":1}');
+      expect(result.msgType, 'onboarding.state.sync');
+      expect(result.dataJson, '{"stateRevision":1}');
     });
   });
 }

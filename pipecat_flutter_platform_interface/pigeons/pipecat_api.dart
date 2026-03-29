@@ -108,6 +108,34 @@ class SendClientMessageParams {
   final String dataJson;
 }
 
+/// Parameters for sending a request-style RTVI client-message payload.
+class SendClientRequestParams {
+  const SendClientRequestParams({
+    required this.msgType,
+    required this.dataJson,
+  });
+
+  /// Custom client request message type.
+  final String msgType;
+
+  /// JSON-serialized payload for the request.
+  final String dataJson;
+}
+
+/// Result payload returned by server-response for a client request.
+class SendClientRequestResult {
+  const SendClientRequestResult({
+    required this.msgType,
+    required this.dataJson,
+  });
+
+  /// Message type echoed from server response `data.t`.
+  final String msgType;
+
+  /// JSON-serialized response payload from server response `data.d`.
+  final String dataJson;
+}
+
 @HostApi()
 abstract class PipecatHostApi {
   /// Starts the session and connects to your transport
@@ -146,6 +174,10 @@ abstract class PipecatHostApi {
   /// Send a custom RTVI client-message payload to the bot.
   @async
   void sendClientMessage(SendClientMessageParams parameters);
+
+  /// Send a custom RTVI client-message request and await server-response.
+  @async
+  SendClientRequestResult sendClientRequest(SendClientRequestParams parameters);
 }
 
 // ==== EVENTS
