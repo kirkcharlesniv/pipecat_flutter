@@ -1,6 +1,6 @@
 name: pipecat_flutter
 description: Pipecat + Daily
-version: 2.1.0
+version: 2.2.0
 repository: https://github.com/kirkcharlesniv/pipecat_flutter/tree/main/pipecat_flutter
 issue_tracker: https://github.com/kirkcharlesniv/pipecat_flutter/issues
 
@@ -19,9 +19,9 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  pipecat_flutter_android: ^2.1.0
-  pipecat_flutter_ios: ^2.1.0
-  pipecat_flutter_platform_interface: ^2.1.0
+  pipecat_flutter_android: ^2.2.0
+  pipecat_flutter_ios: ^2.2.0
+  pipecat_flutter_platform_interface: ^2.2.0
 
 dev_dependencies:
   flutter_test:
