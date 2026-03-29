@@ -260,6 +260,17 @@ final class SpeakingEvent extends PipecatEvent {
   final SpeakingState state;
 }
 
+enum UserMuteState {
+  started,
+  stopped,
+}
+
+final class UserMuteEvent extends PipecatEvent {
+  UserMuteEvent({required this.state});
+
+  final UserMuteState state;
+}
+
 // ---- Server-Specific Insights
 
 enum InsightType {

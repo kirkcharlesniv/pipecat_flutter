@@ -134,6 +134,7 @@ void main() {
     test('convenience filtered streams are sourced from timeline', () async {
       final connectionStates = <ConnectionState>[];
       final speakingStates = <SpeakingState>[];
+      final userMuteStates = <UserMuteState>[];
 
       final connectionSub = PipecatFlutter.instance.connectionStateEvents
           .listen(
@@ -141,6 +142,9 @@ void main() {
           );
       final speakingSub = PipecatFlutter.instance.speakingEvents.listen(
         (event) => speakingStates.add(event.state),
+      );
+      final userMuteSub = PipecatFlutter.instance.userMuteEvents.listen(
+        (event) => userMuteStates.add(event.state),
       );
 
       fakePlatform.timelineController.add(
@@ -159,13 +163,23 @@ void main() {
           event: SpeakingEvent(state: SpeakingState.userStartedSpeaking),
         ),
       );
+      fakePlatform.timelineController.add(
+        TimelineEvent(
+          sequence: 3,
+          sessionEpoch: 7,
+          emittedAtMs: 3,
+          event: UserMuteEvent(state: UserMuteState.started),
+        ),
+      );
 
       await Future<void>.delayed(Duration.zero);
       await connectionSub.cancel();
       await speakingSub.cancel();
+      await userMuteSub.cancel();
 
       expect(connectionStates, [ConnectionState.connected]);
       expect(speakingStates, [SpeakingState.userStartedSpeaking]);
+      expect(userMuteStates, [UserMuteState.started]);
     });
 
     test('botLlmTextEvents reads from timeline, not audio streams', () async {

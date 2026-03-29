@@ -107,6 +107,17 @@ enum class SpeakingState(val raw: Int) {
   }
 }
 
+enum class UserMuteState(val raw: Int) {
+  STARTED(0),
+  STOPPED(1);
+
+  companion object {
+    fun ofRaw(raw: Int): UserMuteState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class InsightType(val raw: Int) {
   BOT_LLM_STARTED(0),
   BOT_LLM_STOPPED(1),
@@ -577,6 +588,34 @@ data class SpeakingEvent (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class UserMuteEvent (
+  val state: UserMuteState
+) : PipecatEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): UserMuteEvent {
+      val state = pigeonVar_list[0] as UserMuteState
+      return UserMuteEvent(state)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      state,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is UserMuteEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class ServerInsightEvent (
   val type: InsightType
 ) : PipecatEvent()
@@ -1021,130 +1060,140 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          InsightType.ofRaw(it.toInt())
+          UserMuteState.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          BotConnectionState.ofRaw(it.toInt())
+          InsightType.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          StartBotParams.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          BotConnectionState.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SendTextParams.fromList(it)
+          StartBotParams.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SendLlmFunctionCallResultParams.fromList(it)
+          SendTextParams.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SendClientMessageParams.fromList(it)
+          SendLlmFunctionCallResultParams.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SendClientRequestParams.fromList(it)
+          SendClientMessageParams.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SendClientRequestResult.fromList(it)
+          SendClientRequestParams.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionStateEvent.fromList(it)
+          SendClientRequestResult.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BackendErrorEvent.fromList(it)
+          ConnectionStateEvent.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UserTranscriptionEvent.fromList(it)
+          BackendErrorEvent.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotOutputEvent.fromList(it)
+          UserTranscriptionEvent.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpeakingEvent.fromList(it)
+          BotOutputEvent.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ServerInsightEvent.fromList(it)
+          SpeakingEvent.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UserLLMText.fromList(it)
+          UserMuteEvent.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotLLMText.fromList(it)
+          ServerInsightEvent.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotTTSText.fromList(it)
+          UserLLMText.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          LlmFunctionCallEvent.fromList(it)
+          BotLLMText.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          InputStatusUpdatedEvent.fromList(it)
+          BotTTSText.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotConnectionEvent.fromList(it)
+          LlmFunctionCallEvent.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotReadyEvent.fromList(it)
+          InputStatusUpdatedEvent.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ServerMessageEvent.fromList(it)
+          BotConnectionEvent.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PipecatMetricSample.fromList(it)
+          BotReadyEvent.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MetricsEvent.fromList(it)
+          ServerMessageEvent.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          TimelineEvent.fromList(it)
+          PipecatMetricSample.fromList(it)
         }
       }
       156.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MetricsEvent.fromList(it)
+        }
+      }
+      157.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          TimelineEvent.fromList(it)
+        }
+      }
+      158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           AudioLevel.fromList(it)
         }
@@ -1162,108 +1211,116 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is InsightType -> {
+      is UserMuteState -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is BotConnectionState -> {
+      is InsightType -> {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is StartBotParams -> {
+      is BotConnectionState -> {
         stream.write(133)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is SendTextParams -> {
+      is StartBotParams -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is SendLlmFunctionCallResultParams -> {
+      is SendTextParams -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is SendClientMessageParams -> {
+      is SendLlmFunctionCallResultParams -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is SendClientRequestParams -> {
+      is SendClientMessageParams -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is SendClientRequestResult -> {
+      is SendClientRequestParams -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is ConnectionStateEvent -> {
+      is SendClientRequestResult -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is BackendErrorEvent -> {
+      is ConnectionStateEvent -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is UserTranscriptionEvent -> {
+      is BackendErrorEvent -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is BotOutputEvent -> {
+      is UserTranscriptionEvent -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is SpeakingEvent -> {
+      is BotOutputEvent -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is ServerInsightEvent -> {
+      is SpeakingEvent -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is UserLLMText -> {
+      is UserMuteEvent -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is BotLLMText -> {
+      is ServerInsightEvent -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is BotTTSText -> {
+      is UserLLMText -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is LlmFunctionCallEvent -> {
+      is BotLLMText -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is InputStatusUpdatedEvent -> {
+      is BotTTSText -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is BotConnectionEvent -> {
+      is LlmFunctionCallEvent -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is BotReadyEvent -> {
+      is InputStatusUpdatedEvent -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is ServerMessageEvent -> {
+      is BotConnectionEvent -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is PipecatMetricSample -> {
+      is BotReadyEvent -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is MetricsEvent -> {
+      is ServerMessageEvent -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is TimelineEvent -> {
+      is PipecatMetricSample -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is AudioLevel -> {
+      is MetricsEvent -> {
         stream.write(156)
+        writeValue(stream, value.toList())
+      }
+      is TimelineEvent -> {
+        stream.write(157)
+        writeValue(stream, value.toList())
+      }
+      is AudioLevel -> {
+        stream.write(158)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

@@ -31,6 +31,9 @@ class PipecatFlutter {
   Stream<UserTranscriptionEvent> get userTranscriptionEvents =>
       events.whereType<UserTranscriptionEvent>();
 
+  /// Stream containing only user mute state events emitted by the server.
+  Stream<UserMuteEvent> get userMuteEvents => events.whereType<UserMuteEvent>();
+
   /// Stream containing only LLM text events produced by the bot
   /// (model-generated text).
   Stream<BotLLMText> get botLlmTextEvents => events.whereType<BotLLMText>();

@@ -35,6 +35,10 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import org.json.JSONObject
 
 class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
+    companion object {
+        private const val USER_MUTE_COMPAT_BRIDGE = "rtvi_user_mute_v1"
+    }
+
     private var client: PipecatClient<DailyTransport, DailyTransportConnectParams>? = null
     private var transport: DailyTransport? = null
     private var applicationContext: Context? = null
@@ -854,12 +858,19 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onServerMessage(data: Value) {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    val userMuteEvent = parseUserMuteEventFromValue(data)
                     emitTimelineEvent(
                         event = ServerMessageEvent(
                             rawJson = valueToCanonicalJson(data) ?: "null",
                         ),
                         sessionEpoch = sessionEpoch,
                     )
+                    if (userMuteEvent != null) {
+                        emitTimelineEvent(
+                            event = userMuteEvent,
+                            sessionEpoch = sessionEpoch,
+                        )
+                    }
                 }
             }
 
@@ -1034,5 +1045,31 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                 }
             }
         }
+    }
+
+    private fun parseUserMuteEventFromValue(data: Value): UserMuteEvent? {
+        val root = data as? Value.Object ?: return null
+        val rootMap = root.value
+
+        val compatObj = rootMap["compat"] as? Value.Object ?: return null
+        val compatBridge = (compatObj.value["bridge"] as? Value.Str)?.value ?: return null
+        if (compatBridge != USER_MUTE_COMPAT_BRIDGE) {
+            return null
+        }
+
+        val userMuteObj = rootMap["user_mute"] as? Value.Object
+            ?: rootMap["userMute"] as? Value.Object
+            ?: return null
+
+        val status = ((userMuteObj.value["status"] as? Value.Str)?.value ?: "")
+            .trim()
+            .lowercase()
+        val state = when (status) {
+            "started" -> UserMuteState.STARTED
+            "stopped" -> UserMuteState.STOPPED
+            else -> return null
+        }
+
+        return UserMuteEvent(state = state)
     }
 }

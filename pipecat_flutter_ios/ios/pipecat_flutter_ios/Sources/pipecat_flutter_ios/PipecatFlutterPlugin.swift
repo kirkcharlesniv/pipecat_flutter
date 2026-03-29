@@ -17,6 +17,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var disconnectedEpoch: Int64 = -1
   private var lastConnectionState: ConnectionState?
   private var lastSpeakingState: SpeakingState?
+  private let userMuteCompatBridge = "rtvi_user_mute_v1"
 
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
     let messenger = registrar.messenger()
@@ -502,10 +503,17 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onServerMessage(data: Any) {
     guard isSessionActive else { return }
+    let rawJson = canonicalJSONString(fromAny: data)
     emitTimelineEvent(
-      event: ServerMessageEvent(rawJson: canonicalJSONString(fromAny: data)),
+      event: ServerMessageEvent(rawJson: rawJson),
       sessionEpoch: activeSessionEpoch
     )
+    if let userMuteEvent = parseUserMuteEvent(fromAny: data) {
+      emitTimelineEvent(
+        event: userMuteEvent,
+        sessionEpoch: activeSessionEpoch
+      )
+    }
   }
 
   public func onUserStartedSpeaking() {
@@ -866,6 +874,49 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
 
     return jsonQuoted(String(describing: data))
+  }
+
+  private func parseUserMuteEvent(fromAny data: Any) -> UserMuteEvent? {
+    let payload: [String: Any]
+    if let value = data as? Value {
+      guard let mapped = foundationObject(fromValue: value) as? [String: Any] else {
+        return nil
+      }
+      payload = mapped
+    } else if let dictionary = data as? [String: Any] {
+      payload = dictionary
+    } else {
+      return nil
+    }
+
+    guard
+      let compat = payload["compat"] as? [String: Any],
+      let bridge = compat["bridge"] as? String,
+      bridge == userMuteCompatBridge
+    else {
+      return nil
+    }
+
+    let userMute = (payload["user_mute"] as? [String: Any])
+      ?? (payload["userMute"] as? [String: Any])
+    guard
+      let userMute,
+      let statusRaw = userMute["status"] as? String
+    else {
+      return nil
+    }
+
+    let state: UserMuteState
+    switch statusRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+    case "started":
+      state = .started
+    case "stopped":
+      state = .stopped
+    default:
+      return nil
+    }
+
+    return UserMuteEvent(state: state)
   }
 
   private func foundationObject(fromValue value: Value) -> Any {
