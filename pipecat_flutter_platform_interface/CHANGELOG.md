@@ -1,3 +1,8 @@
+## 2.3.0
+
+- feat: Add transport diagnostics.
+- feat: Add sub-phases connection statuses.
+
 ## 2.2.0
 
 - chore: Bump package version to `2.2.0`.
