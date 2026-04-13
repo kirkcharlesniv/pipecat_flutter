@@ -1,3 +1,7 @@
+## 2.3.1
+
+- fix: Pigeon errors.
+
 ## 2.3.0
 
 - feat: Add transport diagnostics.
