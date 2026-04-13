@@ -20,6 +20,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var lastSpeakingState: SpeakingState?
   private let userMuteCompatBridge = "rtvi_user_mute_v1"
 
+  private func callbackError(
+    code: String,
+    message: String?,
+    details: Sendable? = nil
+  ) -> any Swift.Error {
+    PigeonError(code: code, message: message, details: details) as any Swift.Error
+  }
+
   nonisolated public static func register(with registrar: FlutterPluginRegistrar) {
     let messenger = registrar.messenger()
     MainActor.assumeIsolated {
@@ -42,15 +50,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func startAndConnect(
     parameters: StartBotParams,
-    completion: @escaping (Result<Void, Error>) -> Void
+    completion: @escaping (Result<Void, Swift.Error>) -> Void
   ) {
     if client != nil {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "ALREADY_CONNECTED",
-            message: "Client already exists. Disconnect first.",
-            details: nil
+            message: "Client already exists. Disconnect first."
           )
         )
       )
@@ -90,10 +97,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
           self.cleanupFailedConnect(sessionEpoch: sessionEpoch)
           completion(
             .failure(
-              PigeonError(
+              self.callbackError(
                 code: "CONNECT_ERROR",
-                message: err.localizedDescription,
-                details: nil
+                message: err.localizedDescription
               )
             )
           )
@@ -102,7 +108,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
-  func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
+  func disconnect(completion: @escaping (Result<Void, Swift.Error>) -> Void) {
     let sessionEpoch = activeSessionEpoch
     guard let currentClient = client else {
       isBotAudioMuted = false
@@ -128,10 +134,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         case .failure(let error):
           completion(
             .failure(
-              PigeonError(
+              self.callbackError(
                 code: "DISCONNECT_ERROR",
-                message: error.localizedDescription,
-                details: nil
+                message: error.localizedDescription
               )
             )
           )
@@ -142,12 +147,12 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func toggleMicrophone(
     isEnabled: Bool,
-    completion: @escaping (Result<Void, Error>) -> Void
+    completion: @escaping (Result<Void, Swift.Error>) -> Void
   ) {
     guard let client else {
       completion(
         .failure(
-          PigeonError(code: "NO_CLIENT", message: "Client not available", details: nil)
+          callbackError(code: "NO_CLIENT", message: "Client not available")
         )
       )
       return
@@ -164,10 +169,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         case .failure(let error):
           completion(
             .failure(
-              PigeonError(
+              self.callbackError(
                 code: "MIC_ERROR",
-                message: error.localizedDescription,
-                details: nil
+                message: error.localizedDescription
               )
             )
           )
@@ -178,12 +182,12 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func toggleCamera(
     isEnabled: Bool,
-    completion: @escaping (Result<Void, Error>) -> Void
+    completion: @escaping (Result<Void, Swift.Error>) -> Void
   ) {
     guard let client else {
       completion(
         .failure(
-          PigeonError(code: "NO_CLIENT", message: "Client not available", details: nil)
+          callbackError(code: "NO_CLIENT", message: "Client not available")
         )
       )
       return
@@ -200,10 +204,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         case .failure(let error):
           completion(
             .failure(
-              PigeonError(
+              self.callbackError(
                 code: "CAMERA_ERROR",
-                message: error.localizedDescription,
-                details: nil
+                message: error.localizedDescription
               )
             )
           )
@@ -212,16 +215,15 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
-  func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+  func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Swift.Error>) -> Void) {
     guard let client,
       let dailyTransport = client.transport as? DailyTransport
     else {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "NO_CLIENT",
-            message: "Client or transport not available",
-            details: nil
+            message: "Client or transport not available"
           )
         )
       )
@@ -237,10 +239,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       } catch {
         completion(
           .failure(
-            PigeonError(
+            self.callbackError(
               code: "MUTE_ERROR",
-              message: error.localizedDescription,
-              details: nil
+              message: error.localizedDescription
             )
           )
         )
@@ -248,11 +249,11 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
-  func sendText(parameters: SendTextParams, completion: @escaping (Result<Void, Error>) -> Void) {
+  func sendText(parameters: SendTextParams, completion: @escaping (Result<Void, Swift.Error>) -> Void) {
     guard let client else {
       completion(
         .failure(
-          PigeonError(code: "NO_CLIENT", message: "Client not available", details: nil)
+          callbackError(code: "NO_CLIENT", message: "Client not available")
         )
       )
       return
@@ -270,7 +271,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     } catch {
       completion(
         .failure(
-          PigeonError(code: "SEND_TEXT_ERROR", message: error.localizedDescription, details: nil)
+          callbackError(
+            code: "SEND_TEXT_ERROR",
+            message: error.localizedDescription
+          )
         )
       )
     }
@@ -278,15 +282,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func sendLlmFunctionCallResult(
     parameters: SendLlmFunctionCallResultParams,
-    completion: @escaping (Result<Void, Error>) -> Void
+    completion: @escaping (Result<Void, Swift.Error>) -> Void
   ) {
     guard let dailyTransport = client?.transport as? DailyTransport else {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "NO_TRANSPORT",
-            message: "Transport not available",
-            details: nil
+            message: "Transport not available"
           )
         )
       )
@@ -312,10 +315,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     } catch {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "SEND_FUNCTION_RESULT_ERROR",
-            message: error.localizedDescription,
-            details: nil
+            message: error.localizedDescription
           )
         )
       )
@@ -324,15 +326,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func sendClientMessage(
     parameters: SendClientMessageParams,
-    completion: @escaping (Result<Void, Error>) -> Void
+    completion: @escaping (Result<Void, Swift.Error>) -> Void
   ) {
     guard let dailyTransport = client?.transport as? DailyTransport else {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "NO_TRANSPORT",
-            message: "Transport not available",
-            details: nil
+            message: "Transport not available"
           )
         )
       )
@@ -350,10 +351,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     } catch {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "SEND_CLIENT_MESSAGE_ERROR",
-            message: error.localizedDescription,
-            details: nil
+            message: error.localizedDescription
           )
         )
       )
@@ -362,15 +362,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func sendClientRequest(
     parameters: SendClientRequestParams,
-    completion: @escaping (Result<SendClientRequestResult, Error>) -> Void
+    completion: @escaping (Result<SendClientRequestResult, Swift.Error>) -> Void
   ) {
     guard let client else {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "NO_CLIENT",
-            message: "Client not available",
-            details: nil
+            message: "Client not available"
           )
         )
       )
@@ -404,10 +403,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     } catch {
       completion(
         .failure(
-          PigeonError(
+          callbackError(
             code: "SEND_CLIENT_REQUEST_ERROR",
-            message: error.localizedDescription,
-            details: nil
+            message: error.localizedDescription
           )
         )
       )
@@ -463,7 +461,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     )
   }
 
-  public func onBotConnected(participant: Participant) {
+  public func onBotConnected(participant: PipecatClientIOS.Participant) {
     guard isSessionActive else { return }
     emitTimelineEvent(
       event: BotConnectionEvent(
@@ -486,7 +484,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     )
   }
 
-  public func onBotDisconnected(participant: Participant) {
+  public func onBotDisconnected(participant: PipecatClientIOS.Participant) {
     guard isSessionActive else { return }
     emitTimelineEvent(
       event: BotConnectionEvent(
@@ -756,7 +754,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
   }
 
-  private func participantIdentifier(from participant: Participant) -> String {
+  private func participantIdentifier(from participant: PipecatClientIOS.Participant) -> String {
     if let participantId = reflectedString(named: "id", from: participant.id), !participantId.isEmpty {
       return participantId
     }
@@ -1039,33 +1037,35 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         "present": callClient.participantCounts.present,
       ]
       if let networkStats = callClient.networkStatistics {
-        payload["network"] = [
+        let latest: [String: Any] = [
+          "receive_bits_per_second": networkStats.stats.latest.receiveBitsPerSecond ?? NSNull(),
+          "send_bits_per_second": networkStats.stats.latest.sendBitsPerSecond ?? NSNull(),
+          "timestamp": networkStats.stats.latest.timestamp ?? NSNull(),
+          "video_recv_bits_per_second": networkStats.stats.latest.videoRecvBitsPerSecond ?? NSNull(),
+          "video_send_bits_per_second": networkStats.stats.latest.videoSendBitsPerSecond ?? NSNull(),
+          "video_recv_packet_loss": networkStats.stats.latest.videoRecvPacketLoss ?? NSNull(),
+          "video_send_packet_loss": networkStats.stats.latest.videoSendPacketLoss ?? NSNull(),
+          "total_recv_packet_loss": networkStats.stats.latest.totalRecvPacketLoss ?? NSNull(),
+          "total_send_packet_loss": networkStats.stats.latest.totalSendPacketLoss ?? NSNull(),
+        ]
+        let networkPayload: [String: Any] = [
           "quality": networkStats.quality,
           "threshold": networkStats.threshold.rawValue,
           "previous_threshold": networkStats.previousThreshold?.rawValue ?? NSNull(),
-          "latest": [
-            "receive_bits_per_second": networkStats.stats.latest.receiveBitsPerSecond ?? NSNull(),
-            "send_bits_per_second": networkStats.stats.latest.sendBitsPerSecond ?? NSNull(),
-            "timestamp": networkStats.stats.latest.timestamp ?? NSNull(),
-            "video_recv_bits_per_second": networkStats.stats.latest.videoRecvBitsPerSecond ?? NSNull(),
-            "video_send_bits_per_second": networkStats.stats.latest.videoSendBitsPerSecond ?? NSNull(),
-            "video_recv_packet_loss": networkStats.stats.latest.videoRecvPacketLoss ?? NSNull(),
-            "video_send_packet_loss": networkStats.stats.latest.videoSendPacketLoss ?? NSNull(),
-            "total_recv_packet_loss": networkStats.stats.latest.totalRecvPacketLoss ?? NSNull(),
-            "total_send_packet_loss": networkStats.stats.latest.totalSendPacketLoss ?? NSNull(),
-          ],
+          "latest": latest,
           "worst_video_receive_packet_loss":
             networkStats.stats.worstVideoReceivePacketLoss ?? NSNull(),
           "worst_video_send_packet_loss":
             networkStats.stats.worstVideoSendPacketLoss ?? NSNull(),
         ]
+        payload["network"] = networkPayload
       }
     }
 
     return payload
   }
 
-  private func mapClientRequestError(_ error: AsyncExecutionError) -> PigeonError {
+  private func mapClientRequestError(_ error: AsyncExecutionError) -> any Swift.Error {
     let rootError = rootRtviError(error)
     if rootError is ResponseTimeoutError {
       return PigeonError(
