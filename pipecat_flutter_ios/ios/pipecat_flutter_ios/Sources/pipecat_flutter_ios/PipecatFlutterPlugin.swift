@@ -1,4 +1,5 @@
 @preconcurrency import Flutter
+import Daily
 import PipecatClientIOS
 import PipecatClientIOSDaily
 import UIKit
@@ -442,6 +443,15 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       )
     }
     updateInputState(sessionEpoch: activeSessionEpoch)
+
+    // Emit raw sub-state so Dart can record fine-grained timing and
+    // show granular progress messages without pigeon API changes.
+    let subStateJson = "{\"type\":\"transport.sub_state\",\"state\":\"\(state)\"}"
+    emitTimelineEvent(
+      event: ServerMessageEvent(rawJson: subStateJson),
+      sessionEpoch: activeSessionEpoch
+    )
+    emitTransportDiagnosticIfNeeded(state: state)
   }
 
   public func onError(message: PipecatClientIOS.RTVIMessageInbound) {
@@ -992,6 +1002,67 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       return String(encoded.dropFirst().dropLast())
     }
     return "\"\""
+  }
+
+  private func emitTransportDiagnosticIfNeeded(state: TransportState) {
+    let stage = String(describing: state).lowercased()
+    guard stage == "connected" || stage == "ready" else { return }
+    guard let dailyTransport = client?.transport as? DailyTransport else { return }
+
+    let payload = transportDiagnosticPayload(
+      stage: stage,
+      transport: dailyTransport
+    )
+    emitTimelineEvent(
+      event: ServerMessageEvent(rawJson: canonicalJSONString(fromJSON: payload)),
+      sessionEpoch: activeSessionEpoch
+    )
+  }
+
+  private func transportDiagnosticPayload(
+    stage: String,
+    transport: DailyTransport
+  ) -> [String: Any] {
+    let callClient = transport.dailyCallClient
+    var payload: [String: Any] = [
+      "type": "transport.diagnostic",
+      "source": "daily_ios",
+      "stage": stage,
+      "transport_state": stage,
+      "captured_at_ms": Int64(Date().timeIntervalSince1970 * 1000),
+    ]
+
+    if let callClient {
+      payload["call_state"] = callClient.callState.rawValue
+      payload["participant_counts"] = [
+        "hidden": callClient.participantCounts.hidden,
+        "present": callClient.participantCounts.present,
+      ]
+      if let networkStats = callClient.networkStatistics {
+        payload["network"] = [
+          "quality": networkStats.quality,
+          "threshold": networkStats.threshold.rawValue,
+          "previous_threshold": networkStats.previousThreshold?.rawValue ?? NSNull(),
+          "latest": [
+            "receive_bits_per_second": networkStats.stats.latest.receiveBitsPerSecond ?? NSNull(),
+            "send_bits_per_second": networkStats.stats.latest.sendBitsPerSecond ?? NSNull(),
+            "timestamp": networkStats.stats.latest.timestamp ?? NSNull(),
+            "video_recv_bits_per_second": networkStats.stats.latest.videoRecvBitsPerSecond ?? NSNull(),
+            "video_send_bits_per_second": networkStats.stats.latest.videoSendBitsPerSecond ?? NSNull(),
+            "video_recv_packet_loss": networkStats.stats.latest.videoRecvPacketLoss ?? NSNull(),
+            "video_send_packet_loss": networkStats.stats.latest.videoSendPacketLoss ?? NSNull(),
+            "total_recv_packet_loss": networkStats.stats.latest.totalRecvPacketLoss ?? NSNull(),
+            "total_send_packet_loss": networkStats.stats.latest.totalSendPacketLoss ?? NSNull(),
+          ],
+          "worst_video_receive_packet_loss":
+            networkStats.stats.worstVideoReceivePacketLoss ?? NSNull(),
+          "worst_video_send_packet_loss":
+            networkStats.stats.worstVideoSendPacketLoss ?? NSNull(),
+        ]
+      }
+    }
+
+    return payload
   }
 
   private func mapClientRequestError(_ error: AsyncExecutionError) -> PigeonError {

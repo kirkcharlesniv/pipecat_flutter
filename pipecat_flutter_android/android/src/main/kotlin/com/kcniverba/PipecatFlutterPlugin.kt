@@ -33,6 +33,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.json.JSONObject
+import java.lang.reflect.Modifier
 
 class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     companion object {
@@ -660,6 +661,128 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         return toCanonicalJson(valueToPlainObject(value))
     }
 
+    private fun emitTransportDiagnosticIfNeeded(
+        state: TransportState,
+        sessionEpoch: Long,
+    ) {
+        val stage = state.name.lowercase()
+        if (stage != "connected" && stage != "ready") return
+
+        val dailyTransport = transport ?: return
+        val callClient = dailyTransport.callClient ?: return
+
+        val payload = linkedMapOf<String, Any?>(
+            "type" to "transport.diagnostic",
+            "source" to "daily_android",
+            "stage" to stage,
+            "transport_state" to stage,
+            "captured_at_ms" to System.currentTimeMillis(),
+        )
+
+        invokeGetter(callClient, "getCallState")?.let {
+            payload["call_state"] = reflectionValueToPlainObject(it)
+        }
+        invokeGetter(callClient, "getParticipantCounts")?.let {
+            payload["participant_counts"] = reflectionValueToPlainObject(it)
+        }
+        invokeGetter(callClient, "getNetworkStatistics", "getNetworkStats")?.let {
+            payload["network"] = reflectionValueToPlainObject(it)
+        }
+        invokeGetter(callClient, "getIceConfig")?.let {
+            payload["ice_config"] = reflectionValueToPlainObject(it)
+        }
+        invokeGetter(callClient, "getMeetingSession")?.let {
+            payload["meeting_session"] = reflectionValueToPlainObject(it)
+        }
+
+        emitTimelineEvent(
+            event = ServerMessageEvent(rawJson = toCanonicalJson(payload)),
+            sessionEpoch = sessionEpoch,
+        )
+    }
+
+    private fun invokeGetter(target: Any, vararg methodNames: String): Any? {
+        for (methodName in methodNames) {
+            val method = target.javaClass.methods.firstOrNull {
+                it.name == methodName && it.parameterCount == 0
+            } ?: continue
+            val result = runCatching { method.invoke(target) }.getOrNull()
+            if (result != null) {
+                return result
+            }
+        }
+        return null
+    }
+
+    private fun reflectionValueToPlainObject(value: Any?, depth: Int = 0): Any? {
+        if (value == null) return null
+        if (depth >= 3) return value.toString()
+
+        return when (value) {
+            is String,
+            is Boolean,
+            is Int,
+            is Long,
+            is Short,
+            is Byte
+            -> value
+
+            is Float -> if (value.isFinite()) value else null
+            is Double -> if (value.isFinite()) value else null
+            is Enum<*> -> value.name.lowercase()
+            is Map<*, *> -> buildMap<String, Any?> {
+                value.forEach { (key, nestedValue) ->
+                    val normalizedKey = key?.toString() ?: return@forEach
+                    val serialized = reflectionValueToPlainObject(
+                        nestedValue,
+                        depth + 1,
+                    )
+                    if (serialized != null) {
+                        put(normalizedKey, serialized)
+                    }
+                }
+            }
+
+            is Iterable<*> -> value.mapNotNull {
+                reflectionValueToPlainObject(it, depth + 1)
+            }
+
+            else -> {
+                val serialized = linkedMapOf<String, Any?>()
+                val getters = value.javaClass.methods
+                    .filter { method ->
+                        Modifier.isPublic(method.modifiers) &&
+                            method.parameterCount == 0 &&
+                            method.returnType != Void.TYPE &&
+                            (method.name.startsWith("get") || method.name.startsWith("is")) &&
+                            method.name != "getClass"
+                    }
+                    .sortedBy { it.name }
+
+                for (getter in getters) {
+                    val nested = runCatching { getter.invoke(value) }.getOrNull()
+                    val serializedValue = reflectionValueToPlainObject(
+                        nested,
+                        depth + 1,
+                    ) ?: continue
+                    serialized[getterNameToKey(getter.name)] = serializedValue
+                }
+
+                if (serialized.isEmpty()) value.toString() else serialized
+            }
+        }
+    }
+
+    private fun getterNameToKey(name: String): String {
+        val raw = when {
+            name.startsWith("get") -> name.removePrefix("get")
+            name.startsWith("is") -> name.removePrefix("is")
+            else -> name
+        }
+        if (raw.isEmpty()) return name
+        return raw.replaceFirstChar { it.lowercase() }
+    }
+
     private fun valueToPlainObject(value: Value): Any? {
         return when (value) {
             is Value.Null -> null
@@ -787,6 +910,18 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                         )
                     }
                     updateInputState(sessionEpoch)
+
+                    // Emit raw sub-state so Dart can record fine-grained timing and
+                    // show granular progress messages without pigeon API changes.
+                    val subStateJson = """{"type":"transport.sub_state","state":"${state.name}"}"""
+                    emitTimelineEvent(
+                        event = ServerMessageEvent(rawJson = subStateJson),
+                        sessionEpoch = sessionEpoch,
+                    )
+                    emitTransportDiagnosticIfNeeded(
+                        state = state,
+                        sessionEpoch = sessionEpoch,
+                    )
                 }
             }
 
