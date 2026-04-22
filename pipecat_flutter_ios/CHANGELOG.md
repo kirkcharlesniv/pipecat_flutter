@@ -1,3 +1,10 @@
+## 2.4.0
+
+- fix: Store bot participant ID on `onBotConnected` instead of fragile `remote.keys.first` lookup at mute time.
+- fix: Pass stored participant ID to `DailyHelper.muteRemoteParticipantAudio` instead of re-querying.
+- fix: Return `BOT_NOT_CONNECTED` error if `muteBotAudio` called before bot joins.
+- fix: Clear `botDailyParticipantId` in all session cleanup and epoch reset paths.
+
 ## 2.3.1
 
 - fix: Pigeon errors.

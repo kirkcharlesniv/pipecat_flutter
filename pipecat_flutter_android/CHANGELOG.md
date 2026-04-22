@@ -1,3 +1,11 @@
+## 2.4.0
+
+- fix: Replace broken `updateRemoteParticipants` bot audio muting with correct `updateSubscriptionsForParticipants` (local subscription control).
+- fix: Store bot participant ID on `onBotConnected` instead of fragile runtime lookup.
+- fix: Set `isBotAudioMuted` only after async subscription call succeeds.
+- feat: Register `CallClientListener` for reactive `onInputsUpdated` and `onSubscriptionsUpdated` track events.
+- fix: Return `BOT_NOT_CONNECTED` error if `muteBotAudio` called before bot joins.
+
 ## 2.3.0
 
 - feat: Add transport diagnostics.

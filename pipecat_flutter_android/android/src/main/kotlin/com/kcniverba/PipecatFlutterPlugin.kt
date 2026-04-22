@@ -23,9 +23,18 @@ import ai.pipecat.client.types.Value
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import co.daily.CallClientListener
 import co.daily.model.MeetingToken
-import co.daily.model.RemoteInputsEnabledUpdate
-import co.daily.model.RemoteParticipantUpdate
+import co.daily.model.ParticipantId as DailyParticipantId
+import co.daily.model.RequestListener
+import co.daily.settings.InputSettings
+import co.daily.settings.subscription.AudioSubscriptionSettingsUpdate
+import co.daily.settings.subscription.MediaSubscriptionSettingsUpdate
+import co.daily.settings.subscription.Subscribed
+import co.daily.settings.subscription.SubscriptionSettings
+import co.daily.settings.subscription.SubscriptionSettingsUpdate
+import co.daily.settings.subscription.SubscriptionState
+import co.daily.settings.subscription.Unsubscribed
 import com.kcniverba.pipecat_flutter_android.*
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.serialization.json.Json
@@ -50,6 +59,8 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     private var remoteAudioHandler: RemoteAudioLevelHandlerImpl? = null
 
     private var isBotAudioMuted: Boolean = false
+    private var botDailyParticipantId: DailyParticipantId? = null
+    private var dailyCallClientListener: CallClientListener? = null
 
     private var activeSessionEpoch: Long = 0
     private var sequenceCounter: Long = 0
@@ -122,6 +133,10 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         transport = newTransport
         client = newClient
 
+        val listener = createCallClientListener(sessionEpoch)
+        dailyCallClientListener = listener
+        newTransport.callClient?.addListener(listener)
+
         val connectParams = DailyTransportConnectParams(
             dailyRoom = parameters.url,
             dailyToken = parameters.token?.let { MeetingToken(it) },
@@ -160,6 +175,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         val currentClient = client
         if (currentClient == null) {
             isBotAudioMuted = false
+            botDailyParticipantId = null
             if (sessionEpoch > 0) {
                 emitDisconnectedIfNeeded(sessionEpoch)
             }
@@ -275,7 +291,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     override fun muteBotAudio(isMuted: Boolean, callback: (Result<Unit>) -> Unit) {
         runOnMain {
-            val dailyTransport = transport ?: run {
+            val callClient = transport?.callClient ?: run {
                 callback(
                     Result.failure(
                         FlutterError(
@@ -287,47 +303,48 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                 return@runOnMain
             }
 
-            try {
-                val callClient = dailyTransport.callClient ?: run {
-                    callback(
-                        Result.failure(
-                            FlutterError(
-                                code = "NO_CLIENT",
-                                message = "CallClient not available",
-                            )
-                        )
-                    )
-                    return@runOnMain
-                }
-
-                val remoteParticipants = callClient.participants()?.all?.values
-                    ?.filter { !it.info.isLocal } ?: emptyList()
-
-                for (participant in remoteParticipants) {
-                    callClient.updateRemoteParticipants(
-                        mapOf(
-                            participant.id to RemoteParticipantUpdate(
-                                inputsEnabled = RemoteInputsEnabledUpdate(
-                                    microphone = !isMuted,
-                                )
-                            )
-                        )
-                    )
-                }
-
-                isBotAudioMuted = isMuted
-                updateInputState(activeSessionEpoch)
-                callback(Result.success(Unit))
-            } catch (e: Exception) {
+            val botId = botDailyParticipantId ?: run {
                 callback(
                     Result.failure(
                         FlutterError(
-                            code = "MUTE_ERROR",
-                            message = e.localizedMessage ?: e.toString(),
+                            code = "BOT_NOT_CONNECTED",
+                            message = "Bot participant not connected",
                         )
                     )
                 )
+                return@runOnMain
             }
+
+            val epoch = activeSessionEpoch
+            callClient.updateSubscriptionsForParticipants(
+                mapOf(
+                    botId to SubscriptionSettingsUpdate(
+                        media = MediaSubscriptionSettingsUpdate(
+                            microphone = AudioSubscriptionSettingsUpdate(
+                                subscriptionState = if (isMuted) Unsubscribed() else Subscribed()
+                            )
+                        )
+                    )
+                ),
+                RequestListener { result ->
+                    runOnMain {
+                        if (result.isError) {
+                            callback(
+                                Result.failure(
+                                    FlutterError(
+                                        code = "MUTE_ERROR",
+                                        message = result.error?.toString() ?: "Unknown error",
+                                    )
+                                )
+                            )
+                        } else {
+                            isBotAudioMuted = isMuted
+                            updateInputState(epoch)
+                            callback(Result.success(Unit))
+                        }
+                    }
+                }
+            )
         }
     }
 
@@ -516,6 +533,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         disconnectedEpoch = -1
         lastConnectionState = null
         lastSpeakingState = null
+        botDailyParticipantId = null
         return activeSessionEpoch
     }
 
@@ -527,9 +545,15 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         if (!isCurrentEpoch(sessionEpoch)) return
 
         val staleClient = client
+        val staleTransport = transport
         client = null
         transport = null
         isBotAudioMuted = false
+        botDailyParticipantId = null
+        dailyCallClientListener?.let { listener ->
+            staleTransport?.callClient?.removeListener(listener)
+            dailyCallClientListener = null
+        }
         emitDisconnectedIfNeeded(sessionEpoch)
 
         // Delay release() to let native threads finish after a connection failure.
@@ -546,8 +570,14 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     private fun cleanupClient(release: Boolean) {
         val existing = client
+        val existingTransport = transport
         client = null
         transport = null
+        botDailyParticipantId = null
+        dailyCallClientListener?.let { listener ->
+            existingTransport?.callClient?.removeListener(listener)
+            dailyCallClientListener = null
+        }
         if (release && existing != null) {
             try {
                 existing.release()
@@ -611,6 +641,31 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             ),
             sessionEpoch = sessionEpoch,
         )
+    }
+
+    private fun createCallClientListener(sessionEpoch: Long): CallClientListener {
+        return object : CallClientListener {
+            override fun onInputsUpdated(inputSettings: InputSettings) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    updateInputState(activeSessionEpoch)
+                }
+            }
+
+            override fun onSubscriptionsUpdated(subscriptions: Map<DailyParticipantId, SubscriptionSettings>) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    val botId = botDailyParticipantId ?: return@runOnMain
+                    val micState = subscriptions[botId]?.media?.microphone?.subscriptionState
+                        ?: return@runOnMain
+                    val isNowMuted = micState == SubscriptionState.unsubscribed
+                    if (isNowMuted != isBotAudioMuted) {
+                        isBotAudioMuted = isNowMuted
+                        updateInputState(activeSessionEpoch)
+                    }
+                }
+            }
+        }
     }
 
     private fun mapTransportState(state: TransportState): ConnectionState {
@@ -938,6 +993,9 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onBotConnected(participant: Participant) {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    botDailyParticipantId = transport?.callClient
+                        ?.participants()?.all?.entries
+                        ?.firstOrNull { !it.value.info.isLocal }?.key
                     emitTimelineEvent(
                         event = BotConnectionEvent(
                             state = BotConnectionState.CONNECTED,
@@ -965,6 +1023,8 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onBotDisconnected(participant: Participant) {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    botDailyParticipantId = null
+                    isBotAudioMuted = false
                     emitTimelineEvent(
                         event = BotConnectionEvent(
                             state = BotConnectionState.DISCONNECTED,

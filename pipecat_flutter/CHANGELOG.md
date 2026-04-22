@@ -1,3 +1,9 @@
+## 2.4.0
+
+- fix: Android bot audio muting now uses correct subscription API.
+- fix: iOS and Android bot participant ID stored on connect for stable mute targeting.
+- feat: Android reactive track state via `CallClientListener`.
+
 ## 2.3.0
 
 - feat: Add transport diagnostics.

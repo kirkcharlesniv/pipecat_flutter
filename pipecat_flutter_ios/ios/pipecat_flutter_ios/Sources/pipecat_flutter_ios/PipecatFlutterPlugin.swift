@@ -12,6 +12,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   private var remoteAudioHandler: RemoteAudioLevelHandler?
 
   private var isBotAudioMuted: Bool = false
+  private var botDailyParticipantId: ParticipantID? = nil
 
   private var activeSessionEpoch: Int64 = 0
   private var sequenceCounter: Int64 = 0
@@ -112,6 +113,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     let sessionEpoch = activeSessionEpoch
     guard let currentClient = client else {
       isBotAudioMuted = false
+      botDailyParticipantId = nil
       if sessionEpoch > 0 {
         emitDisconnectedIfNeeded(sessionEpoch: sessionEpoch)
       }
@@ -129,6 +131,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
             self.client = nil
           }
           self.isBotAudioMuted = false
+          self.botDailyParticipantId = nil
           self.emitDisconnectedIfNeeded(sessionEpoch: sessionEpoch)
           completion(.success(()))
         case .failure(let error):
@@ -230,9 +233,21 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       return
     }
 
+    guard let botId = botDailyParticipantId else {
+      completion(
+        .failure(
+          callbackError(
+            code: "BOT_NOT_CONNECTED",
+            message: "Bot participant not connected"
+          )
+        )
+      )
+      return
+    }
+
     Task { @MainActor in
       do {
-        try await muteRemoteParticipantAudio(transport: dailyTransport, muted: isMuted)
+        try await muteRemoteParticipantAudio(transport: dailyTransport, botParticipantId: botId, muted: isMuted)
         self.isBotAudioMuted = isMuted
         self.updateInputState(sessionEpoch: self.activeSessionEpoch)
         completion(.success(()))
@@ -463,6 +478,9 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onBotConnected(participant: PipecatClientIOS.Participant) {
     guard isSessionActive else { return }
+    if let callClient = (client?.transport as? DailyTransport)?.dailyCallClient {
+      botDailyParticipantId = callClient.participants.remote.keys.first
+    }
     emitTimelineEvent(
       event: BotConnectionEvent(
         state: .connected,
@@ -486,6 +504,8 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onBotDisconnected(participant: PipecatClientIOS.Participant) {
     guard isSessionActive else { return }
+    botDailyParticipantId = nil
+    isBotAudioMuted = false
     emitTimelineEvent(
       event: BotConnectionEvent(
         state: .disconnected,
@@ -670,6 +690,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     disconnectedEpoch = -1
     lastConnectionState = nil
     lastSpeakingState = nil
+    botDailyParticipantId = nil
     return activeSessionEpoch
   }
 
@@ -682,6 +703,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     client?.delegate = nil
     client = nil
     isBotAudioMuted = false
+    botDailyParticipantId = nil
     emitDisconnectedIfNeeded(sessionEpoch: sessionEpoch)
   }
 
