@@ -1,3 +1,9 @@
+## 2.4.1
+
+- fix: Make local microphone mute state authoritative and self-healing against Daily input and publishing state.
+- fix: Keep local audio visualizer and user-speaking events silent while the local microphone is muted.
+- docs: Clarify local microphone control versus bot-audio subscription muting.
+
 ## 2.4.0
 
 - fix: Android bot audio muting now uses correct subscription API.

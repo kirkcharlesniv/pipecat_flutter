@@ -146,7 +146,7 @@ abstract class PipecatHostApi {
   @async
   void disconnect();
 
-  /// Toggle your microphone
+  /// Toggle local microphone input capture and outbound publishing.
   @async
   void toggleMicrophone({
     required bool isEnabled,
@@ -158,6 +158,7 @@ abstract class PipecatHostApi {
     required bool isEnabled,
   });
 
+  /// Toggle bot audio by changing the local remote-audio subscription.
   @async
   void muteBotAudio({
     required bool isMuted,
@@ -410,8 +411,9 @@ abstract class PipecatEventStreamApi {
   /// Canonical ordered timeline of session events.
   TimelineEvent timelineEvents();
 
-  /// Local user's microphone audio level (0.0 - 1.0)
+  /// Local user's microphone audio level (0.0 - 1.0).
   /// High frequency (~50-100ms), use for visualizers.
+  /// Native implementations emit 0.0 while the local microphone is muted.
   AudioLevel localAudioLevel();
 
   /// Remote participant's (bot) audio level (0.0 - 1.0)

@@ -1,6 +1,6 @@
 name: pipecat_flutter_ios
 description: iOS implementation of the pipecat_flutter plugin
-version: 2.4.0
+version: 2.4.1
 repository: https://github.com/kirkcharlesniv/pipecat_flutter/tree/main/pipecat_flutter_ios
 issue_tracker: https://github.com/kirkcharlesniv/pipecat_flutter/issues
 
@@ -19,7 +19,7 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  pipecat_flutter_platform_interface: ^2.3.0
+  pipecat_flutter_platform_interface: ^2.3.1
 
 dev_dependencies:
   flutter_test:

@@ -1,3 +1,7 @@
+## 2.3.1
+
+- docs: Clarify local microphone and bot-audio subscription controls.
+
 ## 2.3.0
 
 - feat: Add transport diagnostics.

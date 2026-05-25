@@ -1204,10 +1204,11 @@ protocol PipecatHostApi {
   func startAndConnect(parameters: StartBotParams, completion: @escaping (Result<Void, Error>) -> Void)
   /// Acts as a dispose too
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
-  /// Toggle your microphone
+  /// Toggle local microphone input capture and outbound publishing.
   func toggleMicrophone(isEnabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   /// Toggle your camera
   func toggleCamera(isEnabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Toggle bot audio by changing the local remote-audio subscription.
   func muteBotAudio(isMuted: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   /// Send typed text input to the bot.
   func sendText(parameters: SendTextParams, completion: @escaping (Result<Void, Error>) -> Void)
@@ -1259,7 +1260,7 @@ class PipecatHostApiSetup {
     } else {
       disconnectChannel.setMessageHandler(nil)
     }
-    /// Toggle your microphone
+    /// Toggle local microphone input capture and outbound publishing.
     let toggleMicrophoneChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.toggleMicrophone\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       toggleMicrophoneChannel.setMessageHandler { message, reply in

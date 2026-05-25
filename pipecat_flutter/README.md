@@ -40,7 +40,7 @@ The plugin exposes multiple event streams (Android Kotlin + iOS Swift mirror the
 | Stream                  | Purpose                                   | Typical Payload                                     |
 | ----------------------- | ----------------------------------------- | --------------------------------------------------- |
 | `events`                | General server/client events and insights | backend errors, LLM/TTS text, server insight events |
-| `localAudioLevel`       | Local user audio energy/level             | `double` level                                      |
+| `localAudioLevel`       | Local user audio energy/level; emits 0.0 while locally muted | `double` level                                      |
 | `remoteAudioLevel`      | Remote participant audio energy/level     | `double` level                                      |
 | `botOutput`             | Bot output messages                       | text, spoken flag, aggregated-by metadata           |
 | `userTranscriptions`    | User transcription updates                | text, isFinal, timestamp, userId                    |
@@ -73,6 +73,12 @@ await PipecatFlutter.instance.startAndConnect(
 
 await PipecatFlutter.instance.disconnect();
 ```
+
+### Audio controls
+
+`toggleMicrophone(isEnabled:)` controls the local Daily microphone input and
+outbound publishing state. `muteBotMicrophone(isMuted:)` controls bot speaker
+output by changing the local Daily subscription to the bot microphone track.
 
 ### Listen to streams
 

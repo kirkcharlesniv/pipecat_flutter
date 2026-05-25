@@ -115,10 +115,11 @@ class PipecatFlutter {
     return _platform.disconnect();
   }
 
-  /// Toggle microphone
+  /// Toggle the local microphone input and publishing state.
   ///
-  /// Enables or disables microphone capture for the current session.
-  /// Pass `isEnabled: true` to start sending audio; `false` to stop.
+  /// Enables or disables local microphone capture and outbound publishing
+  /// for the current session. Pass `isEnabled: true` to start sending user
+  /// audio; `false` to stop capture/publishing.
   Future<void> toggleMicrophone({required bool isEnabled}) {
     return _platform.toggleMicrophone(isEnabled: isEnabled);
   }
@@ -131,7 +132,7 @@ class PipecatFlutter {
     return _platform.toggleCamera(isEnabled: isEnabled);
   }
 
-  /// Mutes speaker output
+  /// Mutes bot speaker output by changing the local Daily subscription.
   Future<void> muteBotMicrophone({required bool isMuted}) {
     return _platform.muteBotMicrophone(isMuted: isMuted);
   }
@@ -186,8 +187,9 @@ class PipecatFlutter {
     );
   }
 
-  /// Local user's microphone level (0.0 - 1.0)
-  /// Updates at ~50-100ms intervals when connected
+  /// Local user's microphone level (0.0 - 1.0).
+  ///
+  /// Emits `0.0` while the local microphone is muted.
   Stream<double> get localAudioLevel =>
       _platform.localAudioLevelStream.map((e) => e.level);
 

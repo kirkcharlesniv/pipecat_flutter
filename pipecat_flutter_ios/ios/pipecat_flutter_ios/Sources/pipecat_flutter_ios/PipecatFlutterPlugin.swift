@@ -1,4 +1,5 @@
 @preconcurrency import Flutter
+import Combine
 import Daily
 import PipecatClientIOS
 import PipecatClientIOSDaily
@@ -13,6 +14,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   private var isBotAudioMuted: Bool = false
   private var botDailyParticipantId: ParticipantID? = nil
+  private var desiredLocalMicEnabled = true
+  private var localMicApplyGeneration: Int64 = 0
+  private var isApplyingLocalMicState = false
+  private var dailyStateCancellables = Set<AnyCancellable>()
 
   private var activeSessionEpoch: Int64 = 0
   private var sequenceCounter: Int64 = 0
@@ -66,6 +71,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
 
     let sessionEpoch = beginNewSessionEpoch()
+    desiredLocalMicEnabled = parameters.shouldEnableMicrophone
     emitTimelineEvent(
       event: ConnectionStateEvent(state: .connecting),
       sessionEpoch: sessionEpoch
@@ -79,6 +85,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     let newClient = PipecatClient(options: options)
     newClient.delegate = self
     client = newClient
+    installDailyStateObservers(for: newClient, sessionEpoch: sessionEpoch)
 
     let connectionParams = DailyTransportConnectionParams(
       roomUrl: parameters.url,
@@ -92,6 +99,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
         switch result {
         case .success:
+          self.reconcileDesiredLocalMicState(sessionEpoch: sessionEpoch)
           self.updateInputState(sessionEpoch: sessionEpoch)
           completion(.success(()))
         case .failure(let err):
@@ -114,6 +122,8 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     guard let currentClient = client else {
       isBotAudioMuted = false
       botDailyParticipantId = nil
+      resetLocalMicController()
+      clearDailyStateObservers()
       if sessionEpoch > 0 {
         emitDisconnectedIfNeeded(sessionEpoch: sessionEpoch)
       }
@@ -128,10 +138,12 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         switch result {
         case .success:
           if self.client === currentClient {
+            self.clearDailyStateObservers()
             self.client = nil
           }
           self.isBotAudioMuted = false
           self.botDailyParticipantId = nil
+          self.resetLocalMicController()
           self.emitDisconnectedIfNeeded(sessionEpoch: sessionEpoch)
           completion(.success(()))
         case .failure(let error):
@@ -152,7 +164,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     isEnabled: Bool,
     completion: @escaping (Result<Void, Swift.Error>) -> Void
   ) {
-    guard let client else {
+    guard let callClient = (client?.transport as? DailyTransport)?.dailyCallClient else {
       completion(
         .failure(
           callbackError(code: "NO_CLIENT", message: "Client not available")
@@ -162,25 +174,17 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     }
 
     let sessionEpoch = activeSessionEpoch
-    client.enableMic(enable: isEnabled) { [weak self] result in
-      DispatchQueue.main.async {
-        guard let self else { return }
-        switch result {
-        case .success:
-          self.updateInputState(sessionEpoch: sessionEpoch)
-          completion(.success(()))
-        case .failure(let error):
-          completion(
-            .failure(
-              self.callbackError(
-                code: "MIC_ERROR",
-                message: error.localizedDescription
-              )
-            )
-          )
-        }
-      }
+    desiredLocalMicEnabled = isEnabled
+    let generation = nextLocalMicApplyGeneration()
+    if !isEnabled {
+      emitMutedLocalAudioState(sessionEpoch: sessionEpoch)
     }
+    applyDesiredLocalMicState(
+      callClient: callClient,
+      sessionEpoch: sessionEpoch,
+      generation: generation,
+      completion: completion
+    )
   }
 
   func toggleCamera(
@@ -435,6 +439,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       event: ConnectionStateEvent(state: .connected),
       sessionEpoch: activeSessionEpoch
     )
+    reconcileDesiredLocalMicState(sessionEpoch: activeSessionEpoch)
     updateInputState(sessionEpoch: activeSessionEpoch)
   }
 
@@ -455,6 +460,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         sessionEpoch: activeSessionEpoch
       )
     }
+    reconcileDesiredLocalMicState(sessionEpoch: activeSessionEpoch)
     updateInputState(sessionEpoch: activeSessionEpoch)
 
     // Emit raw sub-state so Dart can record fine-grained timing and
@@ -546,6 +552,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onUserStartedSpeaking() {
     guard isSessionActive else { return }
+    guard isLocalMicSendingAudio() else {
+      emitMutedLocalAudioState(sessionEpoch: activeSessionEpoch)
+      return
+    }
     emitTimelineEvent(
       event: SpeakingEvent(state: .userStartedSpeaking),
       sessionEpoch: activeSessionEpoch
@@ -554,6 +564,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onUserStoppedSpeaking() {
     guard isSessionActive else { return }
+    guard isLocalMicSendingAudio() else {
+      emitMutedLocalAudioState(sessionEpoch: activeSessionEpoch)
+      return
+    }
     emitTimelineEvent(
       event: SpeakingEvent(state: .userStoppedSpeaking),
       sessionEpoch: activeSessionEpoch
@@ -585,6 +599,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         timestamp: data.timestamp ?? "",
         userId: data.userId ?? ""
       ),
+      sessionEpoch: activeSessionEpoch
+    )
+    emitMutedMicTranscriptDiagnosticIfNeeded(
+      transcript: data,
       sessionEpoch: activeSessionEpoch
     )
   }
@@ -653,6 +671,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
   }
 
   public func onMicUpdated(mic: MediaDeviceInfo?) {
+    reconcileDesiredLocalMicState(sessionEpoch: activeSessionEpoch)
     updateInputState(sessionEpoch: activeSessionEpoch)
   }
 
@@ -670,7 +689,11 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onLocalAudioLevel(level: Float) {
     guard isSessionActive else { return }
-    localAudioHandler?.sendLevel(Double(level))
+    if isLocalMicSendingAudio() {
+      localAudioHandler?.sendLevel(Double(level))
+    } else {
+      emitMutedLocalAudioState(sessionEpoch: activeSessionEpoch)
+    }
   }
 
   public func onRemoteAudioLevel(level: Float, participant: PipecatClientIOS.Participant) {
@@ -702,8 +725,10 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     guard isCurrentEpoch(sessionEpoch) else { return }
     client?.delegate = nil
     client = nil
+    clearDailyStateObservers()
     isBotAudioMuted = false
     botDailyParticipantId = nil
+    resetLocalMicController()
     emitDisconnectedIfNeeded(sessionEpoch: sessionEpoch)
   }
 
@@ -753,11 +778,253 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
       let transport = client?.transport as? DailyTransport
     else { return }
 
+    let localMicState = getLocalMicState()
     emitTimelineEvent(
       event: InputStatusUpdatedEvent(
-        isCurrentMicrophoneEnabled: transport.isMicEnabled(),
-        isCurrentCameraEnabled: transport.isCamEnabled(),
+        isCurrentMicrophoneEnabled: localMicState?.isSending ?? transport.isMicEnabled(),
+        isCurrentCameraEnabled: transport.dailyCallClient?.inputs.camera.isEnabled ?? transport.isCamEnabled(),
         isBotAudioMuted: isBotAudioMuted
+      ),
+      sessionEpoch: sessionEpoch
+    )
+  }
+
+  private struct LocalMicState {
+    let inputEnabled: Bool
+    let publishingEnabled: Bool
+
+    var isSending: Bool {
+      inputEnabled && publishingEnabled
+    }
+  }
+
+  private func getLocalMicState() -> LocalMicState? {
+    guard let callClient = (client?.transport as? DailyTransport)?.dailyCallClient else {
+      return nil
+    }
+    return LocalMicState(
+      inputEnabled: callClient.inputs.microphone.isEnabled,
+      publishingEnabled: callClient.publishing.microphone.isPublishing
+    )
+  }
+
+  private func installDailyStateObservers(for pipecatClient: PipecatClient, sessionEpoch: Int64) {
+    clearDailyStateObservers()
+    guard let callClient = (pipecatClient.transport as? DailyTransport)?.dailyCallClient else {
+      return
+    }
+
+    callClient.$inputs
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        Task { @MainActor in
+          guard let self, self.isCurrentEpoch(sessionEpoch) else { return }
+          self.reconcileDesiredLocalMicState(sessionEpoch: sessionEpoch)
+          self.updateInputState(sessionEpoch: sessionEpoch)
+        }
+      }
+      .store(in: &dailyStateCancellables)
+
+    callClient.$publishing
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        Task { @MainActor in
+          guard let self, self.isCurrentEpoch(sessionEpoch) else { return }
+          self.reconcileDesiredLocalMicState(sessionEpoch: sessionEpoch)
+          self.updateInputState(sessionEpoch: sessionEpoch)
+        }
+      }
+      .store(in: &dailyStateCancellables)
+  }
+
+  private func clearDailyStateObservers() {
+    dailyStateCancellables.removeAll()
+  }
+
+  private func nextLocalMicApplyGeneration() -> Int64 {
+    localMicApplyGeneration += 1
+    return localMicApplyGeneration
+  }
+
+  private func resetLocalMicController() {
+    desiredLocalMicEnabled = true
+    localMicApplyGeneration += 1
+    isApplyingLocalMicState = false
+  }
+
+  private func reconcileDesiredLocalMicState(sessionEpoch: Int64) {
+    guard isCurrentEpoch(sessionEpoch), !isApplyingLocalMicState else { return }
+    guard let state = getLocalMicState() else { return }
+    guard state.inputEnabled != desiredLocalMicEnabled ||
+      state.publishingEnabled != desiredLocalMicEnabled
+    else { return }
+    guard let callClient = (client?.transport as? DailyTransport)?.dailyCallClient else {
+      return
+    }
+
+    applyDesiredLocalMicState(
+      callClient: callClient,
+      sessionEpoch: sessionEpoch,
+      generation: nextLocalMicApplyGeneration(),
+      completion: nil
+    )
+  }
+
+  private func applyDesiredLocalMicState(
+    callClient: CallClient,
+    sessionEpoch: Int64,
+    generation: Int64,
+    attempt: Int = 0,
+    completion: ((Result<Void, Swift.Error>) -> Void)?
+  ) {
+    guard isCurrentEpoch(sessionEpoch), generation == localMicApplyGeneration else {
+      completion?(.success(()))
+      return
+    }
+
+    isApplyingLocalMicState = true
+    let desired = desiredLocalMicEnabled
+    if !desired {
+      emitMutedLocalAudioState(sessionEpoch: sessionEpoch)
+    }
+
+    Task { @MainActor in
+      do {
+        if desired {
+          try await callClient.setInputsEnabled([.microphone: true])
+          guard self.isCurrentEpoch(sessionEpoch), generation == self.localMicApplyGeneration else {
+            completion?(.success(()))
+            return
+          }
+          try await callClient.setIsPublishing([.microphone: true])
+        } else {
+          try await callClient.setIsPublishing([.microphone: false])
+          guard self.isCurrentEpoch(sessionEpoch), generation == self.localMicApplyGeneration else {
+            completion?(.success(()))
+            return
+          }
+          try await callClient.setInputsEnabled([.microphone: false])
+        }
+
+        self.finishLocalMicApply(
+          callClient: callClient,
+          sessionEpoch: sessionEpoch,
+          generation: generation,
+          attempt: attempt,
+          result: .success(()),
+          completion: completion
+        )
+      } catch {
+        self.finishLocalMicApply(
+          callClient: callClient,
+          sessionEpoch: sessionEpoch,
+          generation: generation,
+          attempt: attempt,
+          result: .failure(
+            self.callbackError(
+              code: "MIC_ERROR",
+              message: error.localizedDescription
+            )
+          ),
+          completion: completion
+        )
+      }
+    }
+  }
+
+  private func finishLocalMicApply(
+    callClient: CallClient,
+    sessionEpoch: Int64,
+    generation: Int64,
+    attempt: Int,
+    result: Result<Void, Swift.Error>,
+    completion: ((Result<Void, Swift.Error>) -> Void)?
+  ) {
+    guard isCurrentEpoch(sessionEpoch), generation == localMicApplyGeneration else {
+      completion?(.success(()))
+      return
+    }
+
+    if case .failure = result {
+      isApplyingLocalMicState = false
+      completion?(result)
+      return
+    }
+
+    if let state = getLocalMicState(),
+      state.inputEnabled == desiredLocalMicEnabled,
+      state.publishingEnabled == desiredLocalMicEnabled
+    {
+      isApplyingLocalMicState = false
+      updateInputState(sessionEpoch: sessionEpoch)
+      completion?(.success(()))
+      return
+    }
+
+    if attempt < 2 {
+      applyDesiredLocalMicState(
+        callClient: callClient,
+        sessionEpoch: sessionEpoch,
+        generation: generation,
+        attempt: attempt + 1,
+        completion: completion
+      )
+      return
+    }
+
+    isApplyingLocalMicState = false
+    updateInputState(sessionEpoch: sessionEpoch)
+    completion?(
+      .failure(
+        callbackError(
+          code: "MIC_RECONCILE_ERROR",
+          message: "Daily microphone input/publishing did not reach requested state."
+        )
+      )
+    )
+  }
+
+  private func isLocalMicSendingAudio() -> Bool {
+    guard desiredLocalMicEnabled, let state = getLocalMicState() else {
+      return false
+    }
+    return state.isSending
+  }
+
+  private func emitMutedLocalAudioState(sessionEpoch: Int64) {
+    guard isCurrentEpoch(sessionEpoch) else { return }
+    localAudioHandler?.sendLevel(0.0)
+    if lastSpeakingState == .userStartedSpeaking {
+      emitTimelineEvent(
+        event: SpeakingEvent(state: .userStoppedSpeaking),
+        sessionEpoch: sessionEpoch
+      )
+    }
+  }
+
+  private func emitMutedMicTranscriptDiagnosticIfNeeded(
+    transcript: PipecatClientIOS.Transcript,
+    sessionEpoch: Int64
+  ) {
+    guard !isLocalMicSendingAudio() else { return }
+    let state = getLocalMicState()
+    var payload: [String: Any] = [
+      "type": "local_mic_muted_transcript_detected",
+      "source": "daily_ios",
+      "mic_desired_enabled": desiredLocalMicEnabled,
+      "is_final": transcript.final ?? false,
+      "text": transcript.text,
+    ]
+    if let state {
+      payload["mic_input_enabled"] = state.inputEnabled
+      payload["mic_publishing_enabled"] = state.publishingEnabled
+    } else {
+      payload["mic_input_enabled"] = NSNull()
+      payload["mic_publishing_enabled"] = NSNull()
+    }
+    emitTimelineEvent(
+      event: ServerMessageEvent(
+        rawJson: canonicalJSONString(fromJSON: payload)
       ),
       sessionEpoch: sessionEpoch
     )

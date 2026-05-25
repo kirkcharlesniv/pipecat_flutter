@@ -1337,10 +1337,11 @@ interface PipecatHostApi {
   fun startAndConnect(parameters: StartBotParams, callback: (Result<Unit>) -> Unit)
   /** Acts as a dispose too */
   fun disconnect(callback: (Result<Unit>) -> Unit)
-  /** Toggle your microphone */
+  /** Toggle local microphone input capture and outbound publishing. */
   fun toggleMicrophone(isEnabled: Boolean, callback: (Result<Unit>) -> Unit)
   /** Toggle your camera */
   fun toggleCamera(isEnabled: Boolean, callback: (Result<Unit>) -> Unit)
+  /** Toggle bot audio by changing the local remote-audio subscription. */
   fun muteBotAudio(isMuted: Boolean, callback: (Result<Unit>) -> Unit)
   /** Send typed text input to the bot. */
   fun sendText(parameters: SendTextParams, callback: (Result<Unit>) -> Unit)

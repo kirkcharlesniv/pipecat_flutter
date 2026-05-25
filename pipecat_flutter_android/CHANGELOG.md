@@ -1,3 +1,8 @@
+## 2.4.1
+
+- fix: Make local microphone mute state authoritative and self-healing against Daily input and publishing state.
+- fix: Force local audio levels and user-speaking events to silence while the local microphone is muted.
+
 ## 2.4.0
 
 - fix: Replace broken `updateRemoteParticipants` bot audio muting with correct `updateSubscriptionsForParticipants` (local subscription control).

@@ -1560,7 +1560,7 @@ class PipecatHostApi {
     }
   }
 
-  /// Toggle your microphone
+  /// Toggle local microphone input capture and outbound publishing.
   Future<void> toggleMicrophone({required bool isEnabled}) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.toggleMicrophone$pigeonVar_messageChannelSuffix';
@@ -1612,6 +1612,7 @@ class PipecatHostApi {
     }
   }
 
+  /// Toggle bot audio by changing the local remote-audio subscription.
   Future<void> muteBotAudio({required bool isMuted}) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio$pigeonVar_messageChannelSuffix';

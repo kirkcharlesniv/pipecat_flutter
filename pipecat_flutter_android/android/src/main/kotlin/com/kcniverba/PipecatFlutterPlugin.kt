@@ -23,11 +23,13 @@ import ai.pipecat.client.types.Value
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import co.daily.CallClient
 import co.daily.CallClientListener
 import co.daily.model.MeetingToken
 import co.daily.model.ParticipantId as DailyParticipantId
 import co.daily.model.RequestListener
 import co.daily.settings.InputSettings
+import co.daily.settings.PublishingSettings
 import co.daily.settings.subscription.AudioSubscriptionSettingsUpdate
 import co.daily.settings.subscription.MediaSubscriptionSettingsUpdate
 import co.daily.settings.subscription.Subscribed
@@ -52,7 +54,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     private var client: PipecatClient<DailyTransport, DailyTransportConnectParams>? = null
     private var transport: DailyTransport? = null
     private var applicationContext: Context? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler: Handler by lazy { Handler(Looper.getMainLooper()) }
 
     private var timelineHandler: TimelineEventHandlerImpl? = null
     private var localAudioHandler: LocalAudioLevelHandlerImpl? = null
@@ -61,6 +63,9 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     private var isBotAudioMuted: Boolean = false
     private var botDailyParticipantId: DailyParticipantId? = null
     private var dailyCallClientListener: CallClientListener? = null
+    private var desiredLocalMicEnabled: Boolean = true
+    private var localMicApplyGeneration: Long = 0
+    private var isApplyingLocalMicState: Boolean = false
 
     private var activeSessionEpoch: Long = 0
     private var sequenceCounter: Long = 0
@@ -117,6 +122,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
 
         val sessionEpoch = beginNewSessionEpoch()
+        desiredLocalMicEnabled = parameters.shouldEnableMicrophone
         emitTimelineEvent(
             event = ConnectionStateEvent(state = ConnectionState.CONNECTING),
             sessionEpoch = sessionEpoch,
@@ -150,6 +156,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
                 when (result) {
                     is PipecatResult.Ok -> {
+                        reconcileDesiredLocalMicState(sessionEpoch)
                         updateInputState(sessionEpoch)
                         callback(Result.success(Unit))
                     }
@@ -176,6 +183,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         if (currentClient == null) {
             isBotAudioMuted = false
             botDailyParticipantId = null
+            resetLocalMicController()
             if (sessionEpoch > 0) {
                 emitDisconnectedIfNeeded(sessionEpoch)
             }
@@ -216,7 +224,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     }
 
     override fun toggleMicrophone(isEnabled: Boolean, callback: (Result<Unit>) -> Unit) {
-        val currentClient = client ?: run {
+        val callClient = transport?.callClient ?: run {
             callback(
                 Result.failure(
                     FlutterError(
@@ -229,26 +237,18 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
 
         val epoch = activeSessionEpoch
-        currentClient.enableMic(isEnabled).withCallback { result ->
-            runOnMain {
-                when (result) {
-                    is PipecatResult.Ok -> {
-                        updateInputState(epoch)
-                        callback(Result.success(Unit))
-                    }
-
-                    is PipecatResult.Err -> {
-                        callback(
-                            Result.failure(
-                                FlutterError(
-                                    code = "MIC_ERROR",
-                                    message = result.error.toString(),
-                                )
-                            )
-                        )
-                    }
-                }
+        runOnMain {
+            desiredLocalMicEnabled = isEnabled
+            val generation = nextLocalMicApplyGeneration()
+            if (!isEnabled) {
+                emitMutedLocalAudioState(epoch)
             }
+            applyDesiredLocalMicState(
+                callClient = callClient,
+                sessionEpoch = epoch,
+                generation = generation,
+                callback = callback,
+            )
         }
     }
 
@@ -550,6 +550,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         transport = null
         isBotAudioMuted = false
         botDailyParticipantId = null
+        resetLocalMicController()
         dailyCallClientListener?.let { listener ->
             staleTransport?.callClient?.removeListener(listener)
             dailyCallClientListener = null
@@ -574,6 +575,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         client = null
         transport = null
         botDailyParticipantId = null
+        resetLocalMicController()
         dailyCallClientListener?.let { listener ->
             existingTransport?.callClient?.removeListener(listener)
             dailyCallClientListener = null
@@ -633,11 +635,256 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
     private fun updateInputState(sessionEpoch: Long) {
         val currentClient = client ?: return
+        val dailyClient = transport?.callClient
+        val localMicState = getLocalMicState()
+        val isMicEnabled = localMicState?.isSending ?: currentClient.isMicEnabled
+        val isCameraEnabled = runCatching {
+            dailyClient?.inputs()?.camera?.isEnabled
+        }.getOrNull() ?: currentClient.isCamEnabled
+
         emitTimelineEvent(
             event = InputStatusUpdatedEvent(
-                isCurrentMicrophoneEnabled = currentClient.isMicEnabled,
-                isCurrentCameraEnabled = currentClient.isCamEnabled,
+                isCurrentMicrophoneEnabled = isMicEnabled,
+                isCurrentCameraEnabled = isCameraEnabled,
                 isBotAudioMuted = isBotAudioMuted,
+            ),
+            sessionEpoch = sessionEpoch,
+        )
+    }
+
+    private data class LocalMicState(
+        val inputEnabled: Boolean,
+        val publishingEnabled: Boolean,
+    ) {
+        val isSending: Boolean
+            get() = inputEnabled && publishingEnabled
+    }
+
+    private fun getLocalMicState(): LocalMicState? {
+        val callClient = transport?.callClient ?: return null
+        return runCatching {
+            LocalMicState(
+                inputEnabled = callClient.inputs().microphone.isEnabled,
+                publishingEnabled = callClient.publishing().microphone.isPublishing,
+            )
+        }.getOrNull()
+    }
+
+    private fun nextLocalMicApplyGeneration(): Long {
+        localMicApplyGeneration += 1
+        return localMicApplyGeneration
+    }
+
+    private fun resetLocalMicController() {
+        desiredLocalMicEnabled = true
+        localMicApplyGeneration += 1
+        isApplyingLocalMicState = false
+    }
+
+    private fun reconcileDesiredLocalMicState(sessionEpoch: Long) {
+        if (!isCurrentEpoch(sessionEpoch) || isApplyingLocalMicState) return
+
+        val state = getLocalMicState() ?: return
+        if (
+            state.inputEnabled == desiredLocalMicEnabled &&
+            state.publishingEnabled == desiredLocalMicEnabled
+        ) {
+            return
+        }
+
+        val callClient = transport?.callClient ?: return
+        applyDesiredLocalMicState(
+            callClient = callClient,
+            sessionEpoch = sessionEpoch,
+            generation = nextLocalMicApplyGeneration(),
+            callback = null,
+        )
+    }
+
+    private fun applyDesiredLocalMicState(
+        callClient: CallClient,
+        sessionEpoch: Long,
+        generation: Long,
+        attempt: Int = 0,
+        callback: ((Result<Unit>) -> Unit)?,
+    ) {
+        if (!isCurrentEpoch(sessionEpoch)) {
+            callback?.invoke(Result.success(Unit))
+            return
+        }
+        if (generation != localMicApplyGeneration) {
+            callback?.invoke(Result.success(Unit))
+            return
+        }
+
+        isApplyingLocalMicState = true
+        val desired = desiredLocalMicEnabled
+        if (!desired) {
+            emitMutedLocalAudioState(sessionEpoch)
+        }
+
+        val afterFirstStep: (Result<Unit>) -> Unit = { firstResult ->
+            runOnMain {
+                if (!isCurrentEpoch(sessionEpoch) || generation != localMicApplyGeneration) {
+                    callback?.invoke(Result.success(Unit))
+                    return@runOnMain
+                }
+                if (firstResult.isFailure) {
+                    finishLocalMicApplyWithFailure(generation, firstResult, callback)
+                    return@runOnMain
+                }
+
+                val secondStepListener = RequestListener { secondResult ->
+                    runOnMain {
+                        val mapped = if (secondResult.isError) {
+                            Result.failure<Unit>(
+                                FlutterError(
+                                    code = "MIC_ERROR",
+                                    message = secondResult.error?.toString() ?: "Unknown error",
+                                )
+                            )
+                        } else {
+                            Result.success(Unit)
+                        }
+                        finishLocalMicApply(
+                            callClient = callClient,
+                            sessionEpoch = sessionEpoch,
+                            generation = generation,
+                            attempt = attempt,
+                            result = mapped,
+                            callback = callback,
+                        )
+                    }
+                }
+
+                if (desired) {
+                    callClient.setIsPublishing(microphone = true, listener = secondStepListener)
+                } else {
+                    callClient.setInputsEnabled(microphone = false, listener = secondStepListener)
+                }
+            }
+        }
+
+        val firstStepListener = RequestListener { result ->
+            val mapped = if (result.isError) {
+                Result.failure<Unit>(
+                    FlutterError(
+                        code = "MIC_ERROR",
+                        message = result.error?.toString() ?: "Unknown error",
+                    )
+                )
+            } else {
+                Result.success(Unit)
+            }
+            afterFirstStep(mapped)
+        }
+
+        if (desired) {
+            callClient.setInputsEnabled(microphone = true, listener = firstStepListener)
+        } else {
+            callClient.setIsPublishing(microphone = false, listener = firstStepListener)
+        }
+    }
+
+    private fun finishLocalMicApplyWithFailure(
+        generation: Long,
+        result: Result<Unit>,
+        callback: ((Result<Unit>) -> Unit)?,
+    ) {
+        if (generation == localMicApplyGeneration) {
+            isApplyingLocalMicState = false
+        }
+        callback?.invoke(result)
+    }
+
+    private fun finishLocalMicApply(
+        callClient: CallClient,
+        sessionEpoch: Long,
+        generation: Long,
+        attempt: Int,
+        result: Result<Unit>,
+        callback: ((Result<Unit>) -> Unit)?,
+    ) {
+        if (!isCurrentEpoch(sessionEpoch) || generation != localMicApplyGeneration) {
+            callback?.invoke(Result.success(Unit))
+            return
+        }
+
+        if (result.isFailure) {
+            finishLocalMicApplyWithFailure(generation, result, callback)
+            return
+        }
+
+        val state = getLocalMicState()
+        if (
+            state != null &&
+            state.inputEnabled == desiredLocalMicEnabled &&
+            state.publishingEnabled == desiredLocalMicEnabled
+        ) {
+            isApplyingLocalMicState = false
+            updateInputState(sessionEpoch)
+            callback?.invoke(Result.success(Unit))
+            return
+        }
+
+        if (attempt < 2) {
+            applyDesiredLocalMicState(
+                callClient = callClient,
+                sessionEpoch = sessionEpoch,
+                generation = generation,
+                attempt = attempt + 1,
+                callback = callback,
+            )
+            return
+        }
+
+        isApplyingLocalMicState = false
+        updateInputState(sessionEpoch)
+        callback?.invoke(
+            Result.failure(
+                FlutterError(
+                    code = "MIC_RECONCILE_ERROR",
+                    message = "Daily microphone input/publishing did not reach requested state.",
+                )
+            )
+        )
+    }
+
+    private fun isLocalMicSendingAudio(): Boolean {
+        val state = getLocalMicState()
+        return desiredLocalMicEnabled && state?.isSending == true
+    }
+
+    private fun emitMutedLocalAudioState(sessionEpoch: Long) {
+        if (!isCurrentEpoch(sessionEpoch)) return
+        localAudioHandler?.sendLevel(0.0)
+        if (lastSpeakingState == SpeakingState.USER_STARTED_SPEAKING) {
+            emitTimelineEvent(
+                event = SpeakingEvent(state = SpeakingState.USER_STOPPED_SPEAKING),
+                sessionEpoch = sessionEpoch,
+            )
+        }
+    }
+
+    private fun emitMutedMicTranscriptDiagnosticIfNeeded(
+        transcript: Transcript,
+        sessionEpoch: Long,
+    ) {
+        if (isLocalMicSendingAudio()) return
+
+        emitTimelineEvent(
+            event = ServerMessageEvent(
+                rawJson = toCanonicalJson(
+                    linkedMapOf(
+                        "type" to "local_mic_muted_transcript_detected",
+                        "source" to "daily_android",
+                        "mic_desired_enabled" to desiredLocalMicEnabled,
+                        "mic_input_enabled" to getLocalMicState()?.inputEnabled,
+                        "mic_publishing_enabled" to getLocalMicState()?.publishingEnabled,
+                        "is_final" to transcript.final,
+                        "text" to transcript.text,
+                    )
+                ),
             ),
             sessionEpoch = sessionEpoch,
         )
@@ -648,6 +895,15 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onInputsUpdated(inputSettings: InputSettings) {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    reconcileDesiredLocalMicState(sessionEpoch)
+                    updateInputState(activeSessionEpoch)
+                }
+            }
+
+            override fun onPublishingUpdated(publishingSettings: PublishingSettings) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    reconcileDesiredLocalMicState(sessionEpoch)
                     updateInputState(activeSessionEpoch)
                 }
             }
@@ -940,6 +1196,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                         event = ConnectionStateEvent(state = ConnectionState.CONNECTED),
                         sessionEpoch = sessionEpoch,
                     )
+                    reconcileDesiredLocalMicState(sessionEpoch)
                     updateInputState(sessionEpoch)
                 }
             }
@@ -964,6 +1221,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                             sessionEpoch = sessionEpoch,
                         )
                     }
+                    reconcileDesiredLocalMicState(sessionEpoch)
                     updateInputState(sessionEpoch)
 
                     // Emit raw sub-state so Dart can record fine-grained timing and
@@ -1072,6 +1330,10 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onUserStartedSpeaking() {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    if (!isLocalMicSendingAudio()) {
+                        emitMutedLocalAudioState(sessionEpoch)
+                        return@runOnMain
+                    }
                     emitTimelineEvent(
                         event = SpeakingEvent(state = SpeakingState.USER_STARTED_SPEAKING),
                         sessionEpoch = sessionEpoch,
@@ -1082,6 +1344,10 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onUserStoppedSpeaking() {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    if (!isLocalMicSendingAudio()) {
+                        emitMutedLocalAudioState(sessionEpoch)
+                        return@runOnMain
+                    }
                     emitTimelineEvent(
                         event = SpeakingEvent(state = SpeakingState.USER_STOPPED_SPEAKING),
                         sessionEpoch = sessionEpoch,
@@ -1133,6 +1399,10 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                             timestamp = data.timestamp ?: "",
                             userId = data.userId ?: "",
                         ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                    emitMutedMicTranscriptDiagnosticIfNeeded(
+                        transcript = data,
                         sessionEpoch = sessionEpoch,
                     )
                 }
@@ -1215,21 +1485,19 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             override fun onInputsUpdated(camera: Boolean, mic: Boolean) {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
-                    emitTimelineEvent(
-                        event = InputStatusUpdatedEvent(
-                            isCurrentMicrophoneEnabled = mic,
-                            isCurrentCameraEnabled = camera,
-                            isBotAudioMuted = isBotAudioMuted,
-                        ),
-                        sessionEpoch = sessionEpoch,
-                    )
+                    reconcileDesiredLocalMicState(sessionEpoch)
+                    updateInputState(sessionEpoch)
                 }
             }
 
             override fun onUserAudioLevel(level: Float) {
                 runOnMain {
                     if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
-                    localAudioHandler?.sendLevel(level.toDouble())
+                    if (isLocalMicSendingAudio()) {
+                        localAudioHandler?.sendLevel(level.toDouble())
+                    } else {
+                        emitMutedLocalAudioState(sessionEpoch)
+                    }
                 }
             }
 
