@@ -741,36 +741,125 @@ data class BotTTSText (
 }
 
 /**
- * LLM function call request from the bot.
+ * Emitted when the LLM has decided to call a function (no args yet).
  *
- * Emitted when the runtime asks the client to execute a function/tool.
+ * Corresponds to the modern pipecat RTVI message `llm-function-call-started`.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
-data class LlmFunctionCallEvent (
-  val functionName: String,
-  val toolCallId: String,
-  /** Deterministically-serialized JSON arguments payload. */
-  val argumentsJson: String
+data class LlmFunctionCallStartedEvent (
+  /** May be omitted by the server based on its function-call report level. */
+  val functionName: String? = null
 ) : PipecatEvent()
  {
   companion object {
-    fun fromList(pigeonVar_list: List<Any?>): LlmFunctionCallEvent {
-      val functionName = pigeonVar_list[0] as String
-      val toolCallId = pigeonVar_list[1] as String
-      val argumentsJson = pigeonVar_list[2] as String
-      return LlmFunctionCallEvent(functionName, toolCallId, argumentsJson)
+    fun fromList(pigeonVar_list: List<Any?>): LlmFunctionCallStartedEvent {
+      val functionName = pigeonVar_list[0] as String?
+      return LlmFunctionCallStartedEvent(functionName)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       functionName,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is LlmFunctionCallStartedEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Emitted when the LLM function call is in flight with full call data.
+ *
+ * Corresponds to the modern pipecat RTVI message
+ * `llm-function-call-in-progress`. This is the event new app code should
+ * listen to in order to actually execute the tool.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class LlmFunctionCallInProgressEvent (
+  val toolCallId: String,
+  /** May be omitted by the server based on its function-call report level. */
+  val functionName: String? = null,
+  /**
+   * Deterministically-serialized JSON arguments payload, or null if the
+   * server omitted arguments based on its report level.
+   */
+  val argumentsJson: String? = null
+) : PipecatEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): LlmFunctionCallInProgressEvent {
+      val toolCallId = pigeonVar_list[0] as String
+      val functionName = pigeonVar_list[1] as String?
+      val argumentsJson = pigeonVar_list[2] as String?
+      return LlmFunctionCallInProgressEvent(toolCallId, functionName, argumentsJson)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
       toolCallId,
+      functionName,
       argumentsJson,
     )
   }
   override fun equals(other: Any?): Boolean {
-    if (other !is LlmFunctionCallEvent) {
+    if (other !is LlmFunctionCallInProgressEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return PipecatApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Emitted when the LLM function call has finished or been cancelled.
+ *
+ * Corresponds to the modern pipecat RTVI message `llm-function-call-stopped`.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class LlmFunctionCallStoppedEvent (
+  val toolCallId: String,
+  val cancelled: Boolean,
+  /** May be omitted by the server based on its function-call report level. */
+  val functionName: String? = null,
+  /**
+   * Deterministically-serialized JSON result payload, or null if the call was
+   * cancelled or the server omitted the result based on its report level.
+   */
+  val resultJson: String? = null
+) : PipecatEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): LlmFunctionCallStoppedEvent {
+      val toolCallId = pigeonVar_list[0] as String
+      val cancelled = pigeonVar_list[1] as Boolean
+      val functionName = pigeonVar_list[2] as String?
+      val resultJson = pigeonVar_list[3] as String?
+      return LlmFunctionCallStoppedEvent(toolCallId, cancelled, functionName, resultJson)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      toolCallId,
+      cancelled,
+      functionName,
+      resultJson,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is LlmFunctionCallStoppedEvent) {
       return false
     }
     if (this === other) {
@@ -1155,45 +1244,55 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          LlmFunctionCallEvent.fromList(it)
+          LlmFunctionCallStartedEvent.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          InputStatusUpdatedEvent.fromList(it)
+          LlmFunctionCallInProgressEvent.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotConnectionEvent.fromList(it)
+          LlmFunctionCallStoppedEvent.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BotReadyEvent.fromList(it)
+          InputStatusUpdatedEvent.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ServerMessageEvent.fromList(it)
+          BotConnectionEvent.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PipecatMetricSample.fromList(it)
+          BotReadyEvent.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MetricsEvent.fromList(it)
+          ServerMessageEvent.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          TimelineEvent.fromList(it)
+          PipecatMetricSample.fromList(it)
         }
       }
       158.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MetricsEvent.fromList(it)
+        }
+      }
+      159.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          TimelineEvent.fromList(it)
+        }
+      }
+      160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           AudioLevel.fromList(it)
         }
@@ -1287,40 +1386,48 @@ private open class PipecatApiPigeonCodec : StandardMessageCodec() {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is LlmFunctionCallEvent -> {
+      is LlmFunctionCallStartedEvent -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is InputStatusUpdatedEvent -> {
+      is LlmFunctionCallInProgressEvent -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is BotConnectionEvent -> {
+      is LlmFunctionCallStoppedEvent -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is BotReadyEvent -> {
+      is InputStatusUpdatedEvent -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is ServerMessageEvent -> {
+      is BotConnectionEvent -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is PipecatMetricSample -> {
+      is BotReadyEvent -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is MetricsEvent -> {
+      is ServerMessageEvent -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is TimelineEvent -> {
+      is PipecatMetricSample -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is AudioLevel -> {
+      is MetricsEvent -> {
         stream.write(158)
+        writeValue(stream, value.toList())
+      }
+      is TimelineEvent -> {
+        stream.write(159)
+        writeValue(stream, value.toList())
+      }
+      is AudioLevel -> {
+        stream.write(160)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

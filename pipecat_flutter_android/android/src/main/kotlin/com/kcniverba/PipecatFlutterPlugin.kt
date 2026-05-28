@@ -1429,17 +1429,14 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
             }
 
             override fun onLLMFunctionCall(functionCallData: LLMFunctionCallData) {
-                runOnMain {
-                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
-                    emitTimelineEvent(
-                        event = LlmFunctionCallEvent(
-                            functionName = functionCallData.functionName,
-                            toolCallId = functionCallData.toolCallID,
-                            argumentsJson = Json.encodeToString(JsonElement.serializer(), functionCallData.args),
-                        ),
-                        sessionEpoch = sessionEpoch,
-                    )
-                }
+                // Deprecated wire path (`llm-function-call`). Modern pipecat
+                // servers emit the three lifecycle messages
+                // (`llm-function-call-started/-in-progress/-stopped`); the
+                // Android SDK does not yet decode them natively, so for now
+                // Android clients receive tool calls via the Dart-side
+                // server-message compat-bridge synthesizer in
+                // pipecat_flutter. Patching pipecat-client-android to mirror
+                // the iOS fork is a tracked followup.
             }
 
             override fun onBotLLMStarted() {

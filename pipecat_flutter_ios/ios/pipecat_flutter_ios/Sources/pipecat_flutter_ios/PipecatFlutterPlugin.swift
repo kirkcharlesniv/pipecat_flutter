@@ -627,12 +627,42 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     functionCallData: LLMFunctionCallData,
     onResult: ((Value) async -> Void)
   ) async {
+    // Deprecated wire path (`llm-function-call`). Modern pipecat servers
+    // emit the three lifecycle messages handled below; this no-op exists only
+    // so the protocol is still satisfied if a legacy frame ever arrives.
+  }
+
+  public func onLLMFunctionCallStarted(data: LLMFunctionCallStartedData) {
     guard isSessionActive else { return }
     emitTimelineEvent(
-      event: LlmFunctionCallEvent(
-        functionName: functionCallData.functionName,
-        toolCallId: functionCallData.toolCallID,
-        argumentsJson: canonicalJSONString(from: functionCallData.args) ?? "{}"
+      event: LlmFunctionCallStartedEvent(functionName: data.functionName),
+      sessionEpoch: activeSessionEpoch
+    )
+  }
+
+  public func onLLMFunctionCallInProgress(
+    data: LLMFunctionCallInProgressData,
+    onResult: ((Value) async -> Void)
+  ) async {
+    guard isSessionActive else { return }
+    emitTimelineEvent(
+      event: LlmFunctionCallInProgressEvent(
+        toolCallId: data.toolCallID,
+        functionName: data.functionName,
+        argumentsJson: canonicalJSONString(from: data.args)
+      ),
+      sessionEpoch: activeSessionEpoch
+    )
+  }
+
+  public func onLLMFunctionCallStopped(data: LLMFunctionCallStoppedData) {
+    guard isSessionActive else { return }
+    emitTimelineEvent(
+      event: LlmFunctionCallStoppedEvent(
+        toolCallId: data.toolCallID,
+        cancelled: data.cancelled,
+        functionName: data.functionName,
+        resultJson: canonicalJSONString(from: data.result)
       ),
       sessionEpoch: activeSessionEpoch
     )

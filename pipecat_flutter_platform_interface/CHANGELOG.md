@@ -1,3 +1,13 @@
+## 3.0.0
+
+- **BREAKING**: Remove `LlmFunctionCallEvent` (which mapped to the deprecated
+  RTVI message `llm-function-call`). Apps should migrate to the three new
+  lifecycle events below.
+- feat: Add `LlmFunctionCallStartedEvent`, `LlmFunctionCallInProgressEvent`,
+  and `LlmFunctionCallStoppedEvent` covering the modern pipecat RTVI
+  function-call lifecycle (`llm-function-call-started` /
+  `llm-function-call-in-progress` / `llm-function-call-stopped`).
+
 ## 2.3.1
 
 - docs: Clarify local microphone and bot-audio subscription controls.

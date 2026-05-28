@@ -1,3 +1,17 @@
+## 3.0.0
+
+- **BREAKING**: Remove `LlmFunctionCallEvent`. Migrate to the new
+  `LlmFunctionCallStartedEvent` / `LlmFunctionCallInProgressEvent` /
+  `LlmFunctionCallStoppedEvent` lifecycle. The in-progress event is the one
+  app code should listen to for actually executing tools.
+- feat: Expose `llmFunctionCallStartedEvents`, `llmFunctionCallInProgressEvents`,
+  and `llmFunctionCallStoppedEvents` filtered streams on `PipecatFlutter`.
+- feat: Add a Dart-side synthesizer on `events` that recognizes the legacy
+  `rtvi_tool_call_server_message_v1` compat bridge and the three modern
+  lifecycle messages when they are tunneled via `server-message`, and emits
+  the matching new event. Dedupe is per-subscription so native and
+  synthesized in-progress events for the same `toolCallId` aren't double-fired.
+
 ## 2.4.1
 
 - fix: Make local microphone mute state authoritative and self-healing against Daily input and publishing state.

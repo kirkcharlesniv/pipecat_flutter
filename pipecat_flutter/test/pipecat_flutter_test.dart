@@ -244,4 +244,166 @@ void main() {
       expect(result.dataJson, '{"stateRevision":1}');
     });
   });
+
+  group('Server-message function-call synthesizer', () {
+    late _FakePlatform fakePlatform;
+
+    setUp(() {
+      fakePlatform = _FakePlatform();
+      PipecatFlutterPlatform.instance = fakePlatform;
+    });
+
+    tearDown(() async {
+      await fakePlatform.close();
+    });
+
+    void pushServerMessage(String rawJson, {int sequence = 1}) {
+      fakePlatform.timelineController.add(
+        TimelineEvent(
+          sequence: sequence,
+          sessionEpoch: 1,
+          emittedAtMs: 1000 + sequence,
+          event: ServerMessageEvent(rawJson: rawJson),
+        ),
+      );
+    }
+
+    test(
+      'compat bridge envelope synthesizes an in-progress event alongside the '
+      'original server message',
+      () async {
+        final emitted = <PipecatEvent>[];
+        final sub = PipecatFlutter.instance.events.listen(emitted.add);
+
+        pushServerMessage(
+          '{"compat":{"bridge":"rtvi_tool_call_server_message_v1",'
+          '"source":"trt-bot-runner"},'
+          '"tool_call":{"id":"tc-1","function_name":"set_identity_candidate",'
+          '"arguments":{"userName":"Charles"}}}',
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(emitted, hasLength(2));
+        expect(emitted.first, isA<ServerMessageEvent>());
+        final synthesized =
+            emitted.last as LlmFunctionCallInProgressEvent;
+        expect(synthesized.toolCallId, 'tc-1');
+        expect(synthesized.functionName, 'set_identity_candidate');
+        expect(synthesized.argumentsJson, '{"userName":"Charles"}');
+      },
+    );
+
+    test(
+      'native in-progress event suppresses the compat-bridge synthesis for the '
+      'same toolCallId',
+      () async {
+        final inProgressEvents = <LlmFunctionCallInProgressEvent>[];
+        final sub = PipecatFlutter.instance.llmFunctionCallInProgressEvents
+            .listen(inProgressEvents.add);
+
+        fakePlatform.timelineController.add(
+          TimelineEvent(
+            sequence: 1,
+            sessionEpoch: 1,
+            emittedAtMs: 1,
+            event: LlmFunctionCallInProgressEvent(
+              toolCallId: 'tc-2',
+              functionName: 'set_identity_candidate',
+              argumentsJson: '{"userName":"Charles"}',
+            ),
+          ),
+        );
+        pushServerMessage(
+          '{"compat":{"bridge":"rtvi_tool_call_server_message_v1"},'
+          '"tool_call":{"id":"tc-2","function_name":"set_identity_candidate",'
+          '"arguments":{"userName":"Charles"}}}',
+          sequence: 2,
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(inProgressEvents, hasLength(1));
+        expect(inProgressEvents.single.toolCallId, 'tc-2');
+      },
+    );
+
+    test('tunneled modern envelopes map to the three lifecycle events',
+        () async {
+      final started = <LlmFunctionCallStartedEvent>[];
+      final inProgress = <LlmFunctionCallInProgressEvent>[];
+      final stopped = <LlmFunctionCallStoppedEvent>[];
+
+      final startedSub = PipecatFlutter
+          .instance.llmFunctionCallStartedEvents
+          .listen(started.add);
+      final inProgressSub = PipecatFlutter
+          .instance.llmFunctionCallInProgressEvents
+          .listen(inProgress.add);
+      final stoppedSub = PipecatFlutter
+          .instance.llmFunctionCallStoppedEvents
+          .listen(stopped.add);
+
+      pushServerMessage(
+        '{"type":"llm-function-call-started",'
+        '"data":{"function_name":"set_identity_candidate"}}',
+      );
+      pushServerMessage(
+        '{"type":"llm-function-call-in-progress",'
+        '"data":{"tool_call_id":"tc-3",'
+        '"function_name":"set_identity_candidate",'
+        '"arguments":{"userName":"Charles"}}}',
+        sequence: 2,
+      );
+      pushServerMessage(
+        '{"type":"llm-function-call-stopped",'
+        '"data":{"tool_call_id":"tc-3","cancelled":false,'
+        '"function_name":"set_identity_candidate",'
+        '"result":{"status":"acknowledged"}}}',
+        sequence: 3,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      await startedSub.cancel();
+      await inProgressSub.cancel();
+      await stoppedSub.cancel();
+
+      expect(started.single.functionName, 'set_identity_candidate');
+      expect(inProgress.single.toolCallId, 'tc-3');
+      expect(inProgress.single.argumentsJson, '{"userName":"Charles"}');
+      expect(stopped.single.toolCallId, 'tc-3');
+      expect(stopped.single.cancelled, isFalse);
+      expect(stopped.single.resultJson, '{"status":"acknowledged"}');
+    });
+
+    test(
+      'malformed JSON and unrecognized shapes do not synthesize and do not '
+      'throw',
+      () async {
+        final synthesized = <PipecatEvent>[];
+        final sub = PipecatFlutter.instance.events
+            .where(
+              (event) =>
+                  event is LlmFunctionCallStartedEvent ||
+                  event is LlmFunctionCallInProgressEvent ||
+                  event is LlmFunctionCallStoppedEvent,
+            )
+            .listen(synthesized.add);
+
+        pushServerMessage('not json at all');
+        pushServerMessage('{"type":"some-other-event"}', sequence: 2);
+        pushServerMessage(
+          '{"type":"llm-function-call-in-progress","data":{}}',
+          sequence: 3,
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(synthesized, isEmpty);
+      },
+    );
+  });
 }

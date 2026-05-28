@@ -309,21 +309,58 @@ final class BotTTSText extends PipecatEvent {
   final String text;
 }
 
-/// LLM function call request from the bot.
+/// Emitted when the LLM has decided to call a function (no args yet).
 ///
-/// Emitted when the runtime asks the client to execute a function/tool.
-final class LlmFunctionCallEvent extends PipecatEvent {
-  LlmFunctionCallEvent({
-    required this.functionName,
+/// Corresponds to the modern pipecat RTVI message `llm-function-call-started`.
+final class LlmFunctionCallStartedEvent extends PipecatEvent {
+  LlmFunctionCallStartedEvent({this.functionName});
+
+  /// May be omitted by the server based on its function-call report level.
+  final String? functionName;
+}
+
+/// Emitted when the LLM function call is in flight with full call data.
+///
+/// Corresponds to the modern pipecat RTVI message
+/// `llm-function-call-in-progress`. This is the event new app code should
+/// listen to in order to actually execute the tool.
+final class LlmFunctionCallInProgressEvent extends PipecatEvent {
+  LlmFunctionCallInProgressEvent({
     required this.toolCallId,
-    required this.argumentsJson,
+    this.functionName,
+    this.argumentsJson,
   });
 
-  final String functionName;
   final String toolCallId;
 
-  /// Deterministically-serialized JSON arguments payload.
-  final String argumentsJson;
+  /// May be omitted by the server based on its function-call report level.
+  final String? functionName;
+
+  /// Deterministically-serialized JSON arguments payload, or null if the
+  /// server omitted arguments based on its report level.
+  final String? argumentsJson;
+}
+
+/// Emitted when the LLM function call has finished or been cancelled.
+///
+/// Corresponds to the modern pipecat RTVI message `llm-function-call-stopped`.
+final class LlmFunctionCallStoppedEvent extends PipecatEvent {
+  LlmFunctionCallStoppedEvent({
+    required this.toolCallId,
+    required this.cancelled,
+    this.functionName,
+    this.resultJson,
+  });
+
+  final String toolCallId;
+  final bool cancelled;
+
+  /// May be omitted by the server based on its function-call report level.
+  final String? functionName;
+
+  /// Deterministically-serialized JSON result payload, or null if the call was
+  /// cancelled or the server omitted the result based on its report level.
+  final String? resultJson;
 }
 
 final class InputStatusUpdatedEvent extends PipecatEvent {

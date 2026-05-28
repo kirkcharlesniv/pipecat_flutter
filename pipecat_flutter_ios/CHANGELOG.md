@@ -1,3 +1,43 @@
+## 3.0.3
+
+- fix: Compile the pod in Swift 5.0 language mode (`s.swift_version = '5.0'`)
+  instead of 6.1. The pigeon-generated `PipecatApi.g.swift` references Flutter
+  framework globals (the method codec and `FlutterEndOfEventStream`) that are
+  not `Sendable`; Swift 6 strict concurrency rejects them as hard errors.
+  Reverted the generated-file post-processing from 3.0.1/3.0.2 since Swift 5
+  mode compiles pigeon's output as-is, keeping the generated file pristine.
+  This mirrors the language mode the vendored `PipecatClientIOS` pod uses.
+
+## 3.0.2
+
+- fix (superseded by 3.0.3): annotated the codec as `nonisolated(unsafe) let`
+  to satisfy Swift 6 strict concurrency. Insufficient — the pigeon event
+  channel code also references the non-`Sendable` `FlutterEndOfEventStream`.
+
+## 3.0.1
+
+- fix (superseded by 3.0.3): post-processed the pigeon-generated codec from
+  `var` to `let`. Incomplete — `FlutterStandardMethodCodec` is not `Sendable`.
+- docs: Replace the hardcoded sibling-checkout `Podfile` snippet in the README
+  with one that uses Flutter's portable `.symlinks/plugins/pipecat_flutter_ios`
+  path. The previous snippet only worked on the package author's machine.
+
+## 3.0.0
+
+- **BREAKING**: Drop `LlmFunctionCallEvent` emission. Apps should migrate to
+  the new `LlmFunctionCall{Started,InProgress,Stopped}Event` lifecycle exposed
+  by `pipecat_flutter` 3.0.0.
+- feat: Vendor a patched `PipecatClientIOS` 1.2.0 fork under
+  `ios/vendored/PipecatClientIOS` that adds inbound switch cases for
+  `llm-function-call-started` / `-in-progress` / `-stopped`, plus matching
+  `PipecatClientDelegate` callbacks. `PipecatClientIOSDaily` 1.2.0 is shipped
+  verbatim under `ios/vendored/PipecatClientIOSDaily` to keep CocoaPods
+  resolution pinned. Consuming apps must add two local-path `pod` lines to
+  their `Podfile` — see this package's README for the exact snippet.
+- feat: Plugin implements the three new delegate methods on
+  `PipecatClientDelegate` and forwards them as the corresponding Flutter
+  lifecycle events. The legacy `onLLMFunctionCall` callback is a no-op now.
+
 ## 2.4.1
 
 - fix: Make local microphone mute state authoritative and self-healing against Daily input and publishing state.

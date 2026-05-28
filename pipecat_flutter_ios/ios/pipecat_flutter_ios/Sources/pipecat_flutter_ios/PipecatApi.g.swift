@@ -4,9 +4,9 @@
 import Foundation
 
 #if os(iOS)
-  @preconcurrency import Flutter
+  import Flutter
 #elseif os(macOS)
-  @preconcurrency import FlutterMacOS
+  import FlutterMacOS
 #else
   #error("Unsupported platform.")
 #endif
@@ -704,38 +704,116 @@ struct BotTTSText: PipecatEvent {
   }
 }
 
-/// LLM function call request from the bot.
+/// Emitted when the LLM has decided to call a function (no args yet).
 ///
-/// Emitted when the runtime asks the client to execute a function/tool.
+/// Corresponds to the modern pipecat RTVI message `llm-function-call-started`.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct LlmFunctionCallEvent: PipecatEvent {
-  var functionName: String
-  var toolCallId: String
-  /// Deterministically-serialized JSON arguments payload.
-  var argumentsJson: String
+struct LlmFunctionCallStartedEvent: PipecatEvent {
+  /// May be omitted by the server based on its function-call report level.
+  var functionName: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> LlmFunctionCallEvent? {
-    let functionName = pigeonVar_list[0] as! String
-    let toolCallId = pigeonVar_list[1] as! String
-    let argumentsJson = pigeonVar_list[2] as! String
+  static func fromList(_ pigeonVar_list: [Any?]) -> LlmFunctionCallStartedEvent? {
+    let functionName: String? = nilOrValue(pigeonVar_list[0])
 
-    return LlmFunctionCallEvent(
-      functionName: functionName,
+    return LlmFunctionCallStartedEvent(
+      functionName: functionName
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      functionName
+    ]
+  }
+  static func == (lhs: LlmFunctionCallStartedEvent, rhs: LlmFunctionCallStartedEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Emitted when the LLM function call is in flight with full call data.
+///
+/// Corresponds to the modern pipecat RTVI message
+/// `llm-function-call-in-progress`. This is the event new app code should
+/// listen to in order to actually execute the tool.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct LlmFunctionCallInProgressEvent: PipecatEvent {
+  var toolCallId: String
+  /// May be omitted by the server based on its function-call report level.
+  var functionName: String? = nil
+  /// Deterministically-serialized JSON arguments payload, or null if the
+  /// server omitted arguments based on its report level.
+  var argumentsJson: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> LlmFunctionCallInProgressEvent? {
+    let toolCallId = pigeonVar_list[0] as! String
+    let functionName: String? = nilOrValue(pigeonVar_list[1])
+    let argumentsJson: String? = nilOrValue(pigeonVar_list[2])
+
+    return LlmFunctionCallInProgressEvent(
       toolCallId: toolCallId,
+      functionName: functionName,
       argumentsJson: argumentsJson
     )
   }
   func toList() -> [Any?] {
     return [
-      functionName,
       toolCallId,
+      functionName,
       argumentsJson,
     ]
   }
-  static func == (lhs: LlmFunctionCallEvent, rhs: LlmFunctionCallEvent) -> Bool {
+  static func == (lhs: LlmFunctionCallInProgressEvent, rhs: LlmFunctionCallInProgressEvent) -> Bool {
+    return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashPipecatApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Emitted when the LLM function call has finished or been cancelled.
+///
+/// Corresponds to the modern pipecat RTVI message `llm-function-call-stopped`.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct LlmFunctionCallStoppedEvent: PipecatEvent {
+  var toolCallId: String
+  var cancelled: Bool
+  /// May be omitted by the server based on its function-call report level.
+  var functionName: String? = nil
+  /// Deterministically-serialized JSON result payload, or null if the call was
+  /// cancelled or the server omitted the result based on its report level.
+  var resultJson: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> LlmFunctionCallStoppedEvent? {
+    let toolCallId = pigeonVar_list[0] as! String
+    let cancelled = pigeonVar_list[1] as! Bool
+    let functionName: String? = nilOrValue(pigeonVar_list[2])
+    let resultJson: String? = nilOrValue(pigeonVar_list[3])
+
+    return LlmFunctionCallStoppedEvent(
+      toolCallId: toolCallId,
+      cancelled: cancelled,
+      functionName: functionName,
+      resultJson: resultJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      toolCallId,
+      cancelled,
+      functionName,
+      resultJson,
+    ]
+  }
+  static func == (lhs: LlmFunctionCallStoppedEvent, rhs: LlmFunctionCallStoppedEvent) -> Bool {
     return deepEqualsPipecatApi(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashPipecatApi(value: toList(), hasher: &hasher)
@@ -1058,22 +1136,26 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
     case 149:
       return BotTTSText.fromList(self.readValue() as! [Any?])
     case 150:
-      return LlmFunctionCallEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallStartedEvent.fromList(self.readValue() as! [Any?])
     case 151:
-      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallInProgressEvent.fromList(self.readValue() as! [Any?])
     case 152:
-      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallStoppedEvent.fromList(self.readValue() as! [Any?])
     case 153:
-      return BotReadyEvent.fromList(self.readValue() as! [Any?])
+      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
     case 154:
-      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
+      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
     case 155:
-      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
+      return BotReadyEvent.fromList(self.readValue() as! [Any?])
     case 156:
-      return MetricsEvent.fromList(self.readValue() as! [Any?])
+      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
     case 157:
-      return TimelineEvent.fromList(self.readValue() as! [Any?])
+      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
     case 158:
+      return MetricsEvent.fromList(self.readValue() as! [Any?])
+    case 159:
+      return TimelineEvent.fromList(self.readValue() as! [Any?])
+    case 160:
       return AudioLevel.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1146,32 +1228,38 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? BotTTSText {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? LlmFunctionCallEvent {
+    } else if let value = value as? LlmFunctionCallStartedEvent {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? InputStatusUpdatedEvent {
+    } else if let value = value as? LlmFunctionCallInProgressEvent {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? BotConnectionEvent {
+    } else if let value = value as? LlmFunctionCallStoppedEvent {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? BotReadyEvent {
+    } else if let value = value as? InputStatusUpdatedEvent {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerMessageEvent {
+    } else if let value = value as? BotConnectionEvent {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? PipecatMetricSample {
+    } else if let value = value as? BotReadyEvent {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? MetricsEvent {
+    } else if let value = value as? ServerMessageEvent {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? TimelineEvent {
+    } else if let value = value as? PipecatMetricSample {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioLevel {
+    } else if let value = value as? MetricsEvent {
       super.writeByte(158)
+      super.writeValue(value.toList())
+    } else if let value = value as? TimelineEvent {
+      super.writeByte(159)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioLevel {
+      super.writeByte(160)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1193,10 +1281,8 @@ class PipecatApiPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
   static let shared = PipecatApiPigeonCodec(readerWriter: PipecatApiPigeonCodecReaderWriter())
 }
 
-@inline(__always)
-private func pipecatApiPigeonMethodCodec() -> FlutterStandardMethodCodec {
-  FlutterStandardMethodCodec(readerWriter: PipecatApiPigeonCodecReaderWriter())
-}
+var pipecatApiPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: PipecatApiPigeonCodecReaderWriter());
+
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol PipecatHostApi {
@@ -1296,6 +1382,7 @@ class PipecatHostApiSetup {
     } else {
       toggleCameraChannel.setMessageHandler(nil)
     }
+    /// Toggle bot audio by changing the local remote-audio subscription.
     let muteBotAudioChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.kcniverba.pipecat_flutter.PipecatHostApi.muteBotAudio\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       muteBotAudioChannel.setMessageHandler { message, reply in
@@ -1446,7 +1533,7 @@ class TimelineEventsStreamHandler: PigeonEventChannelWrapper<TimelineEvent> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<TimelineEvent>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }
 }
@@ -1460,7 +1547,7 @@ class LocalAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }
 }
@@ -1474,7 +1561,7 @@ class RemoteAudioLevelStreamHandler: PigeonEventChannelWrapper<AudioLevel> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<AudioLevel>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec())
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: pipecatApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }
 }

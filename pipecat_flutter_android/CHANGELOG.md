@@ -1,3 +1,13 @@
+## 3.0.0
+
+- **BREAKING**: Drop `LlmFunctionCallEvent` emission. Migrate to the new
+  `LlmFunctionCall{Started,InProgress,Stopped}Event` lifecycle exposed by
+  `pipecat_flutter` 3.0.0.
+- chore: `onLLMFunctionCall` is a no-op pending an Android-side SDK patch
+  mirroring iOS. Until then, Android clients receive tool calls via the
+  Dart-side compat-bridge synthesizer in `pipecat_flutter` (the bot runner's
+  `rtvi_tool_call_server_message_v1` envelope).
+
 ## 2.4.1
 
 - fix: Make local microphone mute state authoritative and self-healing against Daily input and publishing state.
