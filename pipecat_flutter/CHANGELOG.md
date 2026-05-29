@@ -1,3 +1,8 @@
+## 4.0.0
+
+- **BREAKING**: Remove the Dart-side compat-bridge synthesizer. The `events` stream is now a plain passthrough of native platform events. Apps must use modern pipecat servers that emit `llm-function-call-started/in-progress/stopped` as first-class RTVI messages — both iOS (vendored SDK) and Android (vendored SDK, this release) now handle these natively.
+- feat: `llmFunctionCallStartedEvents`, `llmFunctionCallInProgressEvents`, and `llmFunctionCallStoppedEvents` continue to work unchanged; they now receive events directly from the native platform layer on both iOS and Android.
+
 ## 3.0.1
 
 - fix: Ship the Android and iOS native microphone-state rewrite with authoritative Daily input plus publishing reconciliation.

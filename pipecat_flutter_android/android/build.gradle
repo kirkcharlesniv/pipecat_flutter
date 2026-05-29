@@ -1,6 +1,7 @@
 plugins {
     id "com.android.library"
     id "kotlin-android"
+    id "org.jetbrains.kotlin.plugin.serialization"
 }
 
 group 'com.kcniverba'
@@ -30,7 +31,14 @@ android {
     }
 
     sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
+        main.java.srcDirs += [
+            'src/main/kotlin',
+            // Vendored pipecat-client-android fork with llm-function-call lifecycle callbacks.
+            // Compiled directly into the plugin to avoid Gradle sub-project complexity in
+            // Flutter's build system. ai.pipecat:client is excluded below so the published
+            // AAR doesn't conflict with this source.
+            'vendored/pipecat-client-android/pipecat-client-android/src/main/java',
+        ]
         test.java.srcDirs += 'src/test/kotlin'
     }
 
@@ -39,9 +47,13 @@ android {
     }
 
     dependencies {
-        implementation "ai.pipecat:daily-transport:1.1.0"
+        // Exclude ai.pipecat:client AAR — we compile the vendored source directly above.
+        implementation("ai.pipecat:daily-transport:1.1.0") {
+            exclude group: "ai.pipecat", module: "client"
+        }
         implementation "co.daily:client:0.37.0" // Override transitive 0.35.0: crash fix for leave() during network failure
         implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"
+        implementation "com.squareup.okhttp3:okhttp:4.12.0"
 
         testImplementation 'org.jetbrains.kotlin:kotlin-test'
         testImplementation 'org.mockito:mockito-core:5.0.0'

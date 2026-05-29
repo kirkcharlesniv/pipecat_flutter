@@ -1,11 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:pipecat_flutter_platform_interface/pipecat_flutter_platform_interface.dart';
 export 'package:pipecat_flutter_platform_interface/pipecat_flutter_platform_interface.dart';
-
-/// Maximum number of recently-bridged tool-call ids we remember for dedupe.
-const int _bridgedToolCallIdCacheCap = 128;
 
 /// Public-facing facade for the Pipecat Flutter plugin.
 class PipecatFlutter {
@@ -20,25 +16,10 @@ class PipecatFlutter {
   /// Canonical ordered timeline stream for all session events.
   Stream<TimelineEvent> get timelineEvents => _platform.timelineEventStream;
 
-  /// Stream of unwrapped event payloads from [timelineEvents]. For each
-  /// [ServerMessageEvent] this stream additionally emits a synthesized
-  /// function-call lifecycle event when the payload matches a recognized
-  /// envelope shape (the compat bridge or a tunneled modern frame). The
-  /// original [ServerMessageEvent] is always still emitted unchanged.
-  ///
-  /// Each subscription gets its own dedupe state (tracked in a closure-
-  /// captured set) so that multiple concurrent consumers — for example the
-  /// three `llmFunctionCall*Events` filtered streams — each independently
-  /// suppress the compat-bridge fallback when a native modern event has
-  /// already covered the same `tool_call_id`.
-  Stream<PipecatEvent> get events {
-    final bridgedIds = <String>{};
-    final bridgedOrder = <String>[];
-    return timelineEvents.asyncExpand(
-      (timelineEvent) =>
-          _expandTimelineEvent(timelineEvent, bridgedIds, bridgedOrder),
-    );
-  }
+  /// Stream of unwrapped event payloads from [timelineEvents].
+  /// Both iOS and Android emit lifecycle events natively; no Dart-side
+  /// synthesis is required.
+  Stream<PipecatEvent> get events => timelineEvents.map((te) => te.event);
 
   // ---- Filtered streams for convenience
 
@@ -111,9 +92,6 @@ class PipecatFlutter {
   ///
   /// This is the event app code should listen to in order to actually execute
   /// a tool call — it carries the function name, tool call id, and arguments.
-  /// Also fires (synthesized) when the bot emits a compat-bridge server
-  /// message envelope, so this stream works against both modern and legacy
-  /// pipecat runners.
   Stream<LlmFunctionCallInProgressEvent> get llmFunctionCallInProgressEvents =>
       events.whereType<LlmFunctionCallInProgressEvent>();
 
@@ -122,138 +100,6 @@ class PipecatFlutter {
   /// Fires when the LLM function call has finished or been cancelled.
   Stream<LlmFunctionCallStoppedEvent> get llmFunctionCallStoppedEvents =>
       events.whereType<LlmFunctionCallStoppedEvent>();
-
-  /// Expands a single timeline event into one or more [PipecatEvent]s:
-  /// always the original payload, plus any synthesized function-call
-  /// lifecycle event when the payload is a recognized server-message
-  /// envelope. Native modern events arrive via the platform stream directly
-  /// and are still passed through unchanged; this method only synthesizes
-  /// *additional* events for server-message-tunneled payloads.
-  Stream<PipecatEvent> _expandTimelineEvent(
-    TimelineEvent timelineEvent,
-    Set<String> bridgedIds,
-    List<String> bridgedOrder,
-  ) {
-    final original = timelineEvent.event;
-    final synthesized = _synthesizeFromEvent(
-      original,
-      bridgedIds,
-      bridgedOrder,
-    );
-    if (synthesized == null) {
-      return Stream<PipecatEvent>.value(original);
-    }
-    return Stream<PipecatEvent>.fromIterable([original, synthesized]);
-  }
-
-  /// Records that we've emitted an in-progress event for [toolCallId] so the
-  /// compat-bridge synthesizer won't double-fire if the native modern event
-  /// already covered it. Dedupe state is per-subscription (passed in) so
-  /// concurrent consumers of [events] don't starve each other.
-  void _rememberBridgedInProgress(
-    String toolCallId,
-    Set<String> bridgedIds,
-    List<String> bridgedOrder,
-  ) {
-    if (bridgedIds.add(toolCallId)) {
-      bridgedOrder.add(toolCallId);
-      if (bridgedOrder.length > _bridgedToolCallIdCacheCap) {
-        final evicted = bridgedOrder.removeAt(0);
-        bridgedIds.remove(evicted);
-      }
-    }
-  }
-
-  /// Returns a synthesized function-call lifecycle event if [event] is a
-  /// [ServerMessageEvent] whose payload matches a recognized envelope, or
-  /// `null` otherwise. Also records native [LlmFunctionCallInProgressEvent]
-  /// emissions so the compat-bridge fallback can dedupe against them.
-  PipecatEvent? _synthesizeFromEvent(
-    PipecatEvent event,
-    Set<String> bridgedIds,
-    List<String> bridgedOrder,
-  ) {
-    if (event is LlmFunctionCallInProgressEvent) {
-      _rememberBridgedInProgress(event.toolCallId, bridgedIds, bridgedOrder);
-      return null;
-    }
-    if (event is! ServerMessageEvent) {
-      return null;
-    }
-
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(event.rawJson);
-    } on FormatException {
-      return null;
-    }
-    if (decoded is! Map<String, Object?>) {
-      return null;
-    }
-
-    // Modern lifecycle messages tunneled via server-message:
-    //   { "type": "llm-function-call-(started|in-progress|stopped)",
-    //     "data": { … } }
-    final type = decoded['type'];
-    if (type is String) {
-      final data = decoded['data'];
-      final dataMap = data is Map<String, Object?> ? data : null;
-      switch (type) {
-        case 'llm-function-call-started':
-          return LlmFunctionCallStartedEvent(
-            functionName: _asString(dataMap?['function_name']),
-          );
-        case 'llm-function-call-in-progress':
-          final toolCallId = _asString(dataMap?['tool_call_id']);
-          if (toolCallId == null) return null;
-          if (bridgedIds.contains(toolCallId)) return null;
-          _rememberBridgedInProgress(toolCallId, bridgedIds, bridgedOrder);
-          final args = dataMap?['arguments'];
-          return LlmFunctionCallInProgressEvent(
-            toolCallId: toolCallId,
-            functionName: _asString(dataMap?['function_name']),
-            argumentsJson: args == null ? null : jsonEncode(args),
-          );
-        case 'llm-function-call-stopped':
-          final toolCallId = _asString(dataMap?['tool_call_id']);
-          if (toolCallId == null) return null;
-          final cancelled = dataMap?['cancelled'];
-          final result = dataMap?['result'];
-          return LlmFunctionCallStoppedEvent(
-            toolCallId: toolCallId,
-            cancelled: cancelled is bool && cancelled,
-            functionName: _asString(dataMap?['function_name']),
-            resultJson: result == null ? null : jsonEncode(result),
-          );
-      }
-    }
-
-    // Compat bridge v1 envelope from the bot runner:
-    //   { "compat": { "bridge": "rtvi_tool_call_server_message_v1", … },
-    //     "tool_call": { "id": "...", "function_name": "...",
-    //                    "arguments": { … } } }
-    final compat = decoded['compat'];
-    final toolCall = decoded['tool_call'];
-    if (compat is Map<String, Object?> &&
-        compat['bridge'] == 'rtvi_tool_call_server_message_v1' &&
-        toolCall is Map<String, Object?>) {
-      final toolCallId = _asString(toolCall['id']);
-      if (toolCallId == null) return null;
-      if (bridgedIds.contains(toolCallId)) return null;
-      _rememberBridgedInProgress(toolCallId, bridgedIds, bridgedOrder);
-      final args = toolCall['arguments'];
-      return LlmFunctionCallInProgressEvent(
-        toolCallId: toolCallId,
-        functionName: _asString(toolCall['function_name']),
-        argumentsJson: args == null ? null : jsonEncode(args),
-      );
-    }
-
-    return null;
-  }
-
-  static String? _asString(Object? value) =>
-      value is String ? value : null;
 
   /// Start and connect to bot
   ///

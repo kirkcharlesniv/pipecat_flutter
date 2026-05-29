@@ -12,7 +12,10 @@ import ai.pipecat.client.transport.MsgServerToClient
 import ai.pipecat.client.types.BotOutputData
 import ai.pipecat.client.types.BotReadyData
 import ai.pipecat.client.types.LLMFunctionCallData
+import ai.pipecat.client.types.LLMFunctionCallInProgressData
 import ai.pipecat.client.types.LLMFunctionCallResult
+import ai.pipecat.client.types.LLMFunctionCallStartedData
+import ai.pipecat.client.types.LLMFunctionCallStoppedData
 import ai.pipecat.client.types.Participant
 import ai.pipecat.client.types.PipecatMetrics
 import ai.pipecat.client.types.PipecatMetricsData
@@ -39,8 +42,11 @@ import co.daily.settings.subscription.Unsubscribed
 import com.kcniverba.pipecat_flutter_android.*
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import java.lang.reflect.Modifier
 
@@ -1065,6 +1071,24 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
         }
     }
 
+    private fun jsonElementToCanonicalJson(element: JsonElement): String {
+        return toCanonicalJson(jsonElementToPlainObject(element))
+    }
+
+    private fun jsonElementToPlainObject(element: JsonElement): Any? {
+        return when (element) {
+            is JsonNull -> null
+            is JsonPrimitive -> when {
+                element.isString -> element.content
+                element.content == "true" -> true
+                element.content == "false" -> false
+                else -> element.content.toDoubleOrNull() ?: element.content
+            }
+            is JsonArray -> element.map { jsonElementToPlainObject(it) }
+            is JsonObject -> element.mapValues { jsonElementToPlainObject(it.value) }
+        }
+    }
+
     private fun toCanonicalJson(value: Any?): String {
         return when (value) {
             null -> "null"
@@ -1416,13 +1440,46 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
 
             override fun onLLMFunctionCall(functionCallData: LLMFunctionCallData) {
                 // Deprecated wire path (`llm-function-call`). Modern pipecat
-                // servers emit the three lifecycle messages
-                // (`llm-function-call-started/-in-progress/-stopped`); the
-                // Android SDK does not yet decode them natively, so for now
-                // Android clients receive tool calls via the Dart-side
-                // server-message compat-bridge synthesizer in
-                // pipecat_flutter. Patching pipecat-client-android to mirror
-                // the iOS fork is a tracked followup.
+                // servers emit the three lifecycle messages handled below.
+            }
+
+            override fun onLLMFunctionCallStarted(data: LLMFunctionCallStartedData) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = LlmFunctionCallStartedEvent(functionName = data.functionName),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onLLMFunctionCallInProgress(data: LLMFunctionCallInProgressData) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = LlmFunctionCallInProgressEvent(
+                            toolCallId = data.toolCallID,
+                            functionName = data.functionName,
+                            argumentsJson = data.arguments?.let { jsonElementToCanonicalJson(it) },
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
+            }
+
+            override fun onLLMFunctionCallStopped(data: LLMFunctionCallStoppedData) {
+                runOnMain {
+                    if (!isCurrentEpoch(sessionEpoch)) return@runOnMain
+                    emitTimelineEvent(
+                        event = LlmFunctionCallStoppedEvent(
+                            toolCallId = data.toolCallID,
+                            cancelled = data.cancelled,
+                            functionName = data.functionName,
+                            resultJson = data.result?.let { jsonElementToCanonicalJson(it) },
+                        ),
+                        sessionEpoch = sessionEpoch,
+                    )
+                }
             }
 
             override fun onBotLLMStarted() {

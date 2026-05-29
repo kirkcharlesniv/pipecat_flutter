@@ -1,3 +1,9 @@
+## 3.1.0
+
+- feat: Vendor `pipecat-client-android` as a local source fork under `android/vendored/pipecat-client-android/` and patch it with native `llm-function-call-started`, `llm-function-call-in-progress`, and `llm-function-call-stopped` RTVI message handling — mirroring the iOS vendored SDK approach.
+- feat: Implement `onLLMFunctionCallStarted`, `onLLMFunctionCallInProgress`, and `onLLMFunctionCallStopped` callbacks in the plugin; each emits the corresponding typed Flutter timeline event with canonical-JSON argument and result payloads.
+- chore: Android clients no longer depend on the Dart-side compat-bridge synthesizer for tool-call events; both platforms now emit lifecycle events natively.
+
 ## 3.0.1
 
 - fix: Replace the previous local-mic reconcile loop with a listener-driven state machine keyed to Daily `inputs.microphone` and `publishing.microphone`.
