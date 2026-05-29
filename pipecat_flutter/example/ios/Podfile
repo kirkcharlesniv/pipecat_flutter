@@ -31,6 +31,15 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  pipecat_flutter_ios_root = File.expand_path(
+    '.symlinks/plugins/pipecat_flutter_ios/ios',
+    __dir__,
+  )
+  pod 'PipecatClientIOS',
+    :path => "#{pipecat_flutter_ios_root}/vendored/PipecatClientIOS"
+  pod 'PipecatClientIOSDaily',
+    :path => "#{pipecat_flutter_ios_root}/vendored/PipecatClientIOSDaily"
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 

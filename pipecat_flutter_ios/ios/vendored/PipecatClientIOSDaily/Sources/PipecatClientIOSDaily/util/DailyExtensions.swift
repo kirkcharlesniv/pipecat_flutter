@@ -52,6 +52,7 @@ extension ClientSettingsUpdate {
     /// - Returns: A new ClientSettingsUpdate with merged settings
     func mergingCameraAndMicrophoneSettings(enableCam: Bool, enableMic: Bool) -> ClientSettingsUpdate {
         var mergedInputs = self.inputs
+        var mergedPublishing = self.publishing
 
         // Override camera and microphone enabled states
         if case .set(var inputSettings) = mergedInputs {
@@ -98,9 +99,34 @@ extension ClientSettingsUpdate {
             )
         }
 
+        if case .set(var publishingSettings) = mergedPublishing {
+            if case .set(var microphoneSettings) = publishingSettings.microphone {
+                microphoneSettings.isPublishing = .set(enableMic)
+                publishingSettings.microphone = .set(microphoneSettings)
+            } else {
+                publishingSettings.microphone = .set(
+                    MicrophonePublishingSettingsUpdate(
+                        isPublishing: .set(enableMic)
+                    )
+                )
+            }
+
+            mergedPublishing = .set(publishingSettings)
+        } else {
+            mergedPublishing = .set(
+                PublishingSettingsUpdate(
+                    microphone: .set(
+                        MicrophonePublishingSettingsUpdate(
+                            isPublishing: .set(enableMic)
+                        )
+                    )
+                )
+            )
+        }
+
         return ClientSettingsUpdate(
             inputs: mergedInputs,
-            publishing: self.publishing
+            publishing: mergedPublishing
         )
     }
 }

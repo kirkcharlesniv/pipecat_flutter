@@ -1,3 +1,9 @@
+## 3.0.1
+
+- fix: Replace the previous local-mic reconcile loop with a listener-driven state machine keyed to Daily `inputs.microphone` and `publishing.microphone`.
+- fix: Make mute/unmute completion wait for fully observed Daily convergence, with bounded polling fallback and `MIC_RECONCILE_ERROR` on failure.
+- test: Add native controller unit coverage for ordered transitions, rapid retoggles, drift recovery, and polling fallback.
+
 ## 3.0.0
 
 - **BREAKING**: Drop `LlmFunctionCallEvent` emission. Migrate to the new

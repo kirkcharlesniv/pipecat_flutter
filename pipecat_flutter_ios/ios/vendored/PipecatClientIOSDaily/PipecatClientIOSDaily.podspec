@@ -4,8 +4,8 @@ Pod::Spec.new do |s|
   s.summary          = 'Pipecat iOS client library with Daily WebRTC transport (pipecat_flutter local copy).'
   s.description      = <<-DESC
   Verbatim copy of PipecatClientIOSDaily 1.2.0 sources, vendored inside pipecat_flutter
-  so CocoaPods resolution stays pinned alongside the local PipecatClientIOS fork. No
-  source changes from upstream.
+  so CocoaPods resolution stays pinned alongside the local PipecatClientIOS fork and
+  Daily SDK alignment used by this repo.
                        DESC
   s.homepage         = 'https://github.com/pipecat-ai/pipecat-client-ios-daily'
   s.documentation_url = 'https://docs.pipecat.ai/client/ios/introduction'
@@ -17,5 +17,5 @@ Pod::Spec.new do |s|
   s.exclude_files    = 'Sources/Exclude'
   s.swift_version    = '5.5'
   s.dependency 'PipecatClientIOS', '~> 1.2.0'
-  s.dependency 'Daily', '~> 0.35.0'
+  s.dependency 'Daily', '~> 0.37.0'
 end

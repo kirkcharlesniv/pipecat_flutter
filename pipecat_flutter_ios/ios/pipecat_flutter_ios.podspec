@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'pipecat_flutter_ios'
-  s.version          = '3.0.3'
+  s.version          = '3.0.4'
   s.summary          = 'An iOS implementation of the pipecat_flutter plugin.'
   s.description      = <<-DESC
   An iOS implementation of the pipecat_flutter plugin.

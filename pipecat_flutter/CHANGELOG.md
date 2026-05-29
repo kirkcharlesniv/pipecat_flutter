@@ -1,3 +1,10 @@
+## 3.0.1
+
+- fix: Ship the Android and iOS native microphone-state rewrite with authoritative Daily input plus publishing reconciliation.
+- fix: Keep mute/unmute completion listener-driven, with bounded fallback polling instead of optimistic state flips.
+- fix: Align the vendored iOS Daily dependency to `0.37.0`.
+- chore: Raise endorsed platform minimums to `pipecat_flutter_android 3.0.1` and `pipecat_flutter_ios 3.0.4`.
+
 ## 3.0.0
 
 - **BREAKING**: Remove `LlmFunctionCallEvent`. Migrate to the new

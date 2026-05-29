@@ -1,4 +1,12 @@
-rootProject.name = 'pipecat_flutter_android'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = "pipecat_flutter_android"
 
 plugins {
     id("com.android.library") version "8.12.0" apply false

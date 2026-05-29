@@ -17,7 +17,8 @@ inbound switch cases for the modern function-call lifecycle messages
 (`llm-function-call-started`, `llm-function-call-in-progress`,
 `llm-function-call-stopped`) so iOS can decode them natively. The unpatched
 upstream pod silently drops those frames. `PipecatClientIOSDaily` 1.2.0 is
-shipped verbatim alongside so CocoaPods version resolution stays pinned.
+shipped as a local copy alongside so CocoaPods version resolution stays pinned
+to the transport changes bundled in this repo.
 
 Add the following snippet to your app's `ios/Podfile` inside the `target`
 block so CocoaPods uses the local fork instead of the published pods:

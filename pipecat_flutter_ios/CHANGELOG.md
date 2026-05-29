@@ -1,3 +1,11 @@
+## 3.0.4
+
+- fix: Replace the previous microphone reconcile logic with a listener-driven state machine that treats Daily `inputs.microphone` plus `publishing.microphone` as the only source of truth.
+- fix: Observe Daily state through transport delegate fan-out instead of direct `CallClient` state observation, avoiding drift between mute commands and native callbacks.
+- fix: Align the vendored `Daily` CocoaPods dependency to `0.37.0`.
+- test: Add native controller tests covering ordered transitions, rapid retoggles, drift recovery, and polling fallback.
+- docs: Pin the example app `Podfile` to the vendored `PipecatClientIOS` and `PipecatClientIOSDaily` pods so the local transport copy and Daily `0.37.0` are actually used.
+
 ## 3.0.3
 
 - fix: Compile the pod in Swift 5.0 language mode (`s.swift_version = '5.0'`)

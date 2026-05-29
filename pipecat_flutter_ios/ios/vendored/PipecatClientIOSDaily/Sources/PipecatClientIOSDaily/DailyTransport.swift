@@ -23,6 +23,7 @@ public class DailyTransport: Transport {
 
     /// The object that acts as the delegate of the voice client.
     public weak var delegate: PipecatClientDelegate?
+    private var observers: [WeakDailyTransportObserver] = []
     private var _state: TransportState = .disconnected
 
     private lazy var localAudioLevelProcessor = AudioLevelProcessor { [weak self] isSpeaking in
@@ -109,24 +110,11 @@ public class DailyTransport: Transport {
             }
         }()
 
-        let joinSettings: ClientSettingsUpdate
-        if let _joinSetting = dailyParams.joinSettings {
-            joinSettings = _joinSetting.mergingCameraAndMicrophoneSettings(
+        let joinSettings = (dailyParams.joinSettings ?? ClientSettingsUpdate())
+            .mergingCameraAndMicrophoneSettings(
                 enableCam: voiceClientOptions!.enableCam,
                 enableMic: voiceClientOptions!.enableMic
             )
-        } else {
-            joinSettings = ClientSettingsUpdate(
-                inputs: .set(
-                    camera: .set(
-                        isEnabled: .set(voiceClientOptions!.enableCam)
-                    ),
-                    microphone: .set(
-                        isEnabled: .set(voiceClientOptions!.enableMic)
-                    )
-                )
-            )
-        }
         try await self.callClient?.join(url: roomURL, token: meetingToken, settings: joinSettings)
     }
 
@@ -283,6 +271,33 @@ public class DailyTransport: Transport {
         VideoTrackRegistry.clearRegistry()
         // It should automatically trigger deinit inside CallClient
         self.callClient = nil
+        self.observers.removeAll()
+    }
+
+    public func addObserver(_ observer: DailyTransportObserver) {
+        self.compactObservers()
+        guard !self.observers.contains(where: { $0.value === observer }) else {
+            return
+        }
+        self.observers.append(WeakDailyTransportObserver(value: observer))
+    }
+
+    public func removeObserver(_ observer: DailyTransportObserver) {
+        self.observers.removeAll { $0.value == nil || $0.value === observer }
+    }
+
+    private func compactObservers() {
+        self.observers.removeAll { $0.value == nil }
+    }
+
+    private func notifyObservers(_ block: @escaping @MainActor (DailyTransportObserver) -> Void) {
+        self.compactObservers()
+        self.observers.forEach { observer in
+            guard let value = observer.value else { return }
+            Task { @MainActor in
+                block(value)
+            }
+        }
     }
 
 }
@@ -384,6 +399,21 @@ extension DailyTransport: CallClientDelegate {
             self._selectedMic = self.selectedMic()
             self.delegate?.onMicUpdated(mic: self._selectedMic)
             self.delegate?.onSpeakerUpdated(speaker: self._selectedMic)
+        }
+        self.notifyObservers { observer in
+            observer.dailyTransport(self, inputsUpdated: inputs)
+        }
+    }
+
+    public func callClient(_ callClient: CallClient, publishingUpdated publishing: PublishingSettings) {
+        self.notifyObservers { observer in
+            observer.dailyTransport(self, publishingUpdated: publishing)
+        }
+    }
+
+    public func callClient(_ callClient: CallClient, subscriptionsUpdated subscriptions: SubscriptionSettingsByID) {
+        self.notifyObservers { observer in
+            observer.dailyTransport(self, subscriptionsUpdated: subscriptions)
         }
     }
 
