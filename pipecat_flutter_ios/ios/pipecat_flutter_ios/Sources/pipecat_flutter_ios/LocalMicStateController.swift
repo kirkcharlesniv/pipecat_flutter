@@ -44,6 +44,10 @@ protocol LocalMicStateControllerDelegate: AnyObject {
   )
   func readSnapshot() -> LocalMicSnapshot?
   func schedule(delay: TimeInterval, action: @escaping () -> Void) -> LocalMicScheduledTask
+  /// Called whenever the observed "is sending audio" state changes, including
+  /// poll-driven convergence that no transport callback would surface. Lets the
+  /// plugin re-emit the authoritative mic state to Flutter.
+  func localMicStateDidChangeSending(_ isSending: Bool)
 }
 
 @MainActor
@@ -70,6 +74,7 @@ final class LocalMicStateController {
   private var generationCounter: Int64 = 0
   private var transition: Transition?
   private var pendingPoll: LocalMicScheduledTask?
+  private var lastNotifiedIsSending: Bool?
 
   private(set) var desiredEnabled = true
   private(set) var observedSnapshot: LocalMicSnapshot?
@@ -100,6 +105,9 @@ final class LocalMicStateController {
     generationCounter += 1
     transition = nil
     cancelPendingPoll()
+    // Force the next real snapshot to notify, guaranteeing the plugin re-emits
+    // the authoritative mic state after a (re)connect.
+    lastNotifiedIsSending = nil
   }
 
   func updateDesiredEnabled(
@@ -120,6 +128,7 @@ final class LocalMicStateController {
 
   func observeSnapshot(_ snapshot: LocalMicSnapshot) {
     observedSnapshot = snapshot
+    notifySendingIfChanged()
 
     guard let activeTransition = transition else {
       if !snapshot.matchesDesired(desiredEnabled) {
@@ -273,8 +282,16 @@ final class LocalMicStateController {
     let snapshot = delegate?.readSnapshot()
     if let snapshot {
       observedSnapshot = snapshot
+      notifySendingIfChanged()
     }
     return snapshot
+  }
+
+  private func notifySendingIfChanged() {
+    let current = observedSnapshot?.isSending ?? false
+    guard lastNotifiedIsSending != current else { return }
+    lastNotifiedIsSending = current
+    delegate?.localMicStateDidChangeSending(current)
   }
 
   private func completeActiveTransition(with result: Result<Void, Swift.Error>) {

@@ -30,6 +30,25 @@ final class LocalMicStateControllerTests: XCTestCase {
     XCTAssertTrue(controller.isSendingAudio)
   }
 
+  func testNotifiesOnceWhenObservedSendingBecomesTrue() {
+    let delegate = FakeDelegate(snapshot: nil)
+    let controller = LocalMicStateController(delegate: delegate)
+
+    // Input enabled but not yet publishing: not "sending" → no `true` notify.
+    controller.observeSnapshot(LocalMicSnapshot(inputEnabled: true, publishingEnabled: false))
+    XCTAssertFalse(delegate.sendingChanges.contains(true))
+
+    // Publishing settles → sending becomes true → notify exactly once.
+    controller.observeSnapshot(LocalMicSnapshot(inputEnabled: true, publishingEnabled: true))
+    XCTAssertEqual(delegate.sendingChanges.last, true)
+    XCTAssertEqual(delegate.sendingChanges.filter { $0 }.count, 1)
+
+    // Same state again must not re-notify.
+    let countBefore = delegate.sendingChanges.count
+    controller.observeSnapshot(LocalMicSnapshot(inputEnabled: true, publishingEnabled: true))
+    XCTAssertEqual(delegate.sendingChanges.count, countBefore)
+  }
+
   func testDisableWaitsForObservedPublishingThenInput() {
     let delegate = FakeDelegate(
       snapshot: LocalMicSnapshot(inputEnabled: true, publishingEnabled: true)
@@ -139,6 +158,7 @@ private final class FakeDelegate: LocalMicStateControllerDelegate {
 
   var snapshot: LocalMicSnapshot?
   var operations: [String] = []
+  var sendingChanges: [Bool] = []
   private var pendingRequests: [PendingRequest] = []
   private var scheduledTasks: [FakeScheduledTask] = []
 
@@ -162,6 +182,10 @@ private final class FakeDelegate: LocalMicStateControllerDelegate {
 
   func readSnapshot() -> LocalMicSnapshot? {
     snapshot
+  }
+
+  func localMicStateDidChangeSending(_ isSending: Bool) {
+    sendingChanges.append(isSending)
   }
 
   func schedule(delay: TimeInterval, action: @escaping () -> Void) -> LocalMicScheduledTask {

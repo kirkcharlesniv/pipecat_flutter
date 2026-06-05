@@ -1,3 +1,9 @@
+## 3.2.0
+
+- feat: Emit an `InputStatusUpdatedEvent` whenever the local microphone's observed sending state (`inputs.microphone` ∧ `publishing.microphone`) changes — including poll-driven reconcile convergence that no Daily `CallClientListener` callback would surface — so the client's mic indicator can never lag the real capture state.
+- fix: Re-emit the input state on connect success and again shortly after (+300 ms / +1 s), so late UI subscribers and post-connect publishing settling are always reflected after a (re)connect. Fixes a stale "muted" mic indicator while audio is live after reconnecting to a new room.
+- test: Cover the new sending-state change notification in `LocalMicStateControllerTest`.
+
 ## 3.1.0
 
 - feat: Vendor `pipecat-client-android` as a local source fork under `android/vendored/pipecat-client-android/` and patch it with native `llm-function-call-started`, `llm-function-call-in-progress`, and `llm-function-call-stopped` RTVI message handling — mirroring the iOS vendored SDK approach.

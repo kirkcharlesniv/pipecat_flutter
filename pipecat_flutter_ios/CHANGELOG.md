@@ -1,3 +1,9 @@
+## 3.1.0
+
+- feat: Emit an `InputStatusUpdatedEvent` whenever the local microphone's observed sending state (`inputs.microphone` ∧ `publishing.microphone`) changes — including poll-driven reconcile convergence that no Daily transport callback would surface — so the client's mic indicator can never lag the real capture state.
+- fix: Re-emit the input state on connect success and again shortly after (+300 ms / +1 s), so late UI subscribers and post-connect publishing settling are always reflected after a (re)connect. Fixes a stale "muted" mic indicator while audio is live after reconnecting to a new room.
+- test: Cover the new sending-state change notification in the `LocalMicStateController` tests.
+
 ## 3.0.4
 
 - fix: Replace the previous microphone reconcile logic with a listener-driven state machine that treats Daily `inputs.microphone` plus `publishing.microphone` as the only source of truth.

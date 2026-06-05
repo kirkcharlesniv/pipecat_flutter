@@ -39,6 +39,26 @@ class LocalMicStateControllerTest {
     }
 
     @Test
+    fun notifiesOnceWhenObservedSendingBecomesTrue() {
+        val delegate = FakeDelegate(snapshot = null)
+        val controller = LocalMicStateController(delegate)
+
+        // Input enabled but not yet publishing: not "sending" -> no `true` notify.
+        controller.observeSnapshot(LocalMicSnapshot(inputEnabled = true, publishingEnabled = false))
+        assertFalse(delegate.sendingChanges.contains(true))
+
+        // Publishing settles -> sending becomes true -> notify exactly once.
+        controller.observeSnapshot(LocalMicSnapshot(inputEnabled = true, publishingEnabled = true))
+        assertEquals(true, delegate.sendingChanges.last())
+        assertEquals(1, delegate.sendingChanges.count { it })
+
+        // Same state again must not re-notify.
+        val countBefore = delegate.sendingChanges.size
+        controller.observeSnapshot(LocalMicSnapshot(inputEnabled = true, publishingEnabled = true))
+        assertEquals(countBefore, delegate.sendingChanges.size)
+    }
+
+    @Test
     fun disable_waitsForObservedPublishingThenInput() {
         val delegate = FakeDelegate(
             snapshot = LocalMicSnapshot(inputEnabled = true, publishingEnabled = true),
@@ -155,6 +175,7 @@ class LocalMicStateControllerTest {
         )
 
         val operations = mutableListOf<String>()
+        val sendingChanges = mutableListOf<Boolean>()
         private val pendingRequests = ArrayDeque<PendingRequest>()
         private val scheduledTasks = ArrayDeque<FakeScheduledTask>()
 
@@ -179,6 +200,10 @@ class LocalMicStateControllerTest {
 
         override fun readSnapshot(): LocalMicSnapshot? {
             return snapshot
+        }
+
+        override fun onSendingStateChanged(isSending: Boolean) {
+            sendingChanges += isSending
         }
 
         override fun schedule(delayMs: Long, action: () -> Unit): LocalMicScheduledTask {

@@ -27,6 +27,13 @@ internal interface LocalMicStateControllerDelegate {
     fun issueSetPublishingEnabled(enabled: Boolean, completion: (Result<Unit>) -> Unit)
     fun readSnapshot(): LocalMicSnapshot?
     fun schedule(delayMs: Long, action: () -> Unit): LocalMicScheduledTask
+
+    /**
+     * Called whenever the observed "is sending audio" state changes, including
+     * poll-driven convergence that no transport callback would surface. Lets the
+     * plugin re-emit the authoritative mic state to Flutter.
+     */
+    fun onSendingStateChanged(isSending: Boolean)
 }
 
 internal fun interface LocalMicScheduledTask {
@@ -71,6 +78,7 @@ internal class LocalMicStateController(
     private var generationCounter: Long = 0
     private var transition: Transition? = null
     private var pendingPoll: LocalMicScheduledTask? = null
+    private var lastNotifiedIsSending: Boolean? = null
 
     fun reset(desiredEnabled: Boolean = true) {
         this.desiredEnabled = desiredEnabled
@@ -78,6 +86,9 @@ internal class LocalMicStateController(
         generationCounter += 1
         transition = null
         cancelPendingPoll()
+        // Force the next real snapshot to notify, guaranteeing the plugin
+        // re-emits the authoritative mic state after a (re)connect.
+        lastNotifiedIsSending = null
     }
 
     fun updateDesiredEnabled(
@@ -98,6 +109,7 @@ internal class LocalMicStateController(
 
     fun observeSnapshot(snapshot: LocalMicSnapshot) {
         observedSnapshot = snapshot
+        notifySendingIfChanged()
 
         val activeTransition = transition
         if (activeTransition == null) {
@@ -246,8 +258,17 @@ internal class LocalMicStateController(
         val snapshot = delegate.readSnapshot()
         if (snapshot != null) {
             observedSnapshot = snapshot
+            notifySendingIfChanged()
         }
         return snapshot
+    }
+
+    private fun notifySendingIfChanged() {
+        val current = observedSnapshot?.isSending == true
+        if (lastNotifiedIsSending != current) {
+            lastNotifiedIsSending = current
+            delegate.onSendingStateChanged(current)
+        }
     }
 
     private fun completeActiveTransition(result: Result<Unit>) {

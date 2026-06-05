@@ -164,6 +164,7 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                         is PipecatResult.Ok -> {
                             observeCurrentLocalMicSnapshot()
                             updateInputState(sessionEpoch)
+                            scheduleDelayedInputStateReemit(sessionEpoch)
                             callback(Result.success(Unit))
                         }
 
@@ -788,6 +789,16 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                         mainHandler.removeCallbacks(runnable)
                     }
                 }
+
+                override fun onSendingStateChanged(isSending: Boolean) {
+                    // Invoked on the main thread (observeSnapshot/refreshSnapshot
+                    // run there). Re-emit the authoritative mic state on any
+                    // sending-state change — including poll-driven convergence
+                    // that no transport callback would surface.
+                    if (isCurrentEpoch(activeSessionEpoch)) {
+                        updateInputState(activeSessionEpoch)
+                    }
+                }
             },
         )
     }
@@ -799,6 +810,25 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
     private fun observeCurrentLocalMicSnapshot() {
         val snapshot = getLocalMicSnapshot() ?: return
         localMicController.observeSnapshot(snapshot)
+    }
+
+    /**
+     * Re-emit the input state shortly after connect so late UI subscribers and
+     * any post-connect publishing settling are reflected even if no transport
+     * callback fires. Epoch-guarded so a stale session can't emit.
+     */
+    private fun scheduleDelayedInputStateReemit(sessionEpoch: Long) {
+        for (delayMs in longArrayOf(300L, 1000L)) {
+            mainHandler.postDelayed(
+                {
+                    if (isCurrentEpoch(sessionEpoch)) {
+                        observeCurrentLocalMicSnapshot()
+                        updateInputState(sessionEpoch)
+                    }
+                },
+                delayMs,
+            )
+        }
     }
 
     private fun mapLocalMicError(error: Throwable): FlutterError {

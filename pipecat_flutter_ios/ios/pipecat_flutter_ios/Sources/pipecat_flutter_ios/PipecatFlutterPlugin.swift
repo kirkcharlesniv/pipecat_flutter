@@ -103,6 +103,7 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
         case .success:
           self.observeCurrentLocalMicSnapshot()
           self.updateInputState(sessionEpoch: sessionEpoch)
+          self.scheduleDelayedInputStateReemit(sessionEpoch: sessionEpoch)
           completion(.success(()))
         case .failure(let err):
           self.cleanupFailedConnect(sessionEpoch: sessionEpoch)
@@ -851,6 +852,19 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
     localMicController.observeSnapshot(snapshot)
   }
 
+  /// Re-emit the input state shortly after connect so late UI subscribers and
+  /// any post-connect publishing settling are reflected even if no Daily
+  /// callback fires. Epoch-guarded so a stale session can't emit.
+  private func scheduleDelayedInputStateReemit(sessionEpoch: Int64) {
+    for delay in [0.3, 1.0] {
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+        guard let self, self.isCurrentEpoch(sessionEpoch) else { return }
+        self.observeCurrentLocalMicSnapshot()
+        self.updateInputState(sessionEpoch: sessionEpoch)
+      }
+    }
+  }
+
   private func resetLocalMicController(desiredEnabled: Bool = true) {
     localMicController.reset(desiredEnabled: desiredEnabled)
   }
@@ -939,6 +953,14 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   func readSnapshot() -> LocalMicSnapshot? {
     return getLocalMicSnapshot()
+  }
+
+  func localMicStateDidChangeSending(_ isSending: Bool) {
+    // Re-emit the authoritative mic state whenever the controller's observed
+    // sending state changes — including poll-driven convergence that no Daily
+    // transport callback would surface — so the UI never lags the real state.
+    guard isSessionActive else { return }
+    updateInputState(sessionEpoch: activeSessionEpoch)
   }
 
   func schedule(
