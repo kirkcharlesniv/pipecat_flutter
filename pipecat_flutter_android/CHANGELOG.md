@@ -1,3 +1,10 @@
+## 4.0.0
+
+- **BREAKING**: Emit the RTVI 2.0 fields on `BotOutputEvent` and stop forwarding `spoken` as `isSpoken`.
+- feat: Rebase the vendored `pipecat-client-android` fork onto upstream 1.2.0. Advertises RTVI `2.0.0`. The lifecycle patch (3 message types, 3 payload classes, 3 callbacks, 3 dispatch branches) is re-applied unchanged; `BotOutputData` is now upstream verbatim.
+- feat: `ai.pipecat:daily-transport` 1.1.0 -> 1.2.1 and `co.daily:client` 0.37.0 -> 0.39.1.
+- **BREAKING**: `minSdkVersion` 19 -> 24 and `jvmTarget` 1.8 -> 11, required by the new artifacts. `compileSdk` 34 -> 36.
+
 ## 3.2.0
 
 - feat: Emit an `InputStatusUpdatedEvent` whenever the local microphone's observed sending state (`inputs.microphone` ∧ `publishing.microphone`) changes — including poll-driven reconcile convergence that no Daily `CallClientListener` callback would surface — so the client's mic indicator can never lag the real capture state.

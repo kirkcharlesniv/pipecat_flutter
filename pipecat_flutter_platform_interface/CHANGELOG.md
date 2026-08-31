@@ -1,3 +1,7 @@
+## 4.0.0
+
+- **BREAKING**: `BotOutputEvent` drops `isSpoken` and gains the RTVI 2.0 fields. New: `willBeSpoken`, `spokenStatus` (`BotOutputSpokenStatus`), `accumulatedText`, `remainingText`, `segmentId`. `spokenProgress` is flattened into `accumulatedText`/`remainingText` rather than nested.
+
 ## 3.0.0
 
 - **BREAKING**: Remove `LlmFunctionCallEvent` (which mapped to the deprecated

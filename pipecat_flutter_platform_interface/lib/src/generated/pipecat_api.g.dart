@@ -35,6 +35,17 @@ enum ConnectionState {
   disconnected,
 }
 
+/// Lifecycle stage of a spoken segment under RTVI 2.0.
+enum BotOutputSpokenStatus {
+  /// A new segment is about to be spoken. Carries the canonical text.
+  newSegment,
+  /// TTS is partway through the segment. Carries
+  /// [BotOutputEvent.accumulatedText] and [BotOutputEvent.remainingText].
+  inProgress,
+  /// The segment finished being spoken.
+  completed,
+}
+
 enum SpeakingState {
   /// Emitted when the user begins speaking
   userStartedSpeaking,
@@ -557,29 +568,73 @@ class UserTranscriptionEvent extends PipecatEvent {
 ;
 }
 
-/// The best-effort representation of the bot's output text, including both
-/// spoken and unspoken text.
+/// A segment of the bot's output text.
+///
+/// Under RTVI 2.0 every event carries the **complete** text of its segment,
+/// re-sent on each update, alongside exactly how much of it has been spoken.
+/// Clients key on [segmentId] and read the spoken position off the wire rather
+/// than stitching fragments together.
+///
+/// Two emission shapes exist depending on whether the TTS service reports word
+/// timestamps, and clients must handle both:
+///
+/// * **word-timestamp path** — `newSegment`, then repeated `inProgress` updates
+///   carrying [accumulatedText]/[remainingText], then `completed`.
+/// * **post-synthesis path** — a single `completed` event with
+///   [accumulatedText] equal to [text]. There is no `newSegment`.
+///
+/// [spokenStatus] is null whenever [willBeSpoken] is false: that text is never
+/// spoken, so no progress will ever follow and it should be surfaced
+/// immediately.
 class BotOutputEvent extends PipecatEvent {
   BotOutputEvent({
     required this.text,
-    required this.isSpoken,
     required this.aggregatedBy,
+    this.willBeSpoken,
+    this.spokenStatus,
+    this.accumulatedText,
+    this.remainingText,
+    this.segmentId,
   });
 
-  /// The output text from the bot.
+  /// The complete text of this segment.
   String text;
 
-  /// Indicates if this text was spoken by the bot.
-  bool isSpoken;
-
-  /// Indicates how the text was aggregated.
+  /// Indicates how the text was aggregated (`sentence`, or a custom
+  /// server-defined type such as `code` or `url`).
+  ///
+  /// `word` and `token` are not emitted under RTVI 2.0 — word-level detail
+  /// arrives as [spokenStatus]/[accumulatedText] progress on the segment.
   String aggregatedBy;
+
+  /// Whether this text will be spoken by TTS.
+  ///
+  /// When false, [spokenStatus] is null and no progress events follow.
+  bool? willBeSpoken;
+
+  /// Lifecycle stage of this segment. Null when [willBeSpoken] is false.
+  BotOutputSpokenStatus? spokenStatus;
+
+  /// The portion of [text] spoken so far.
+  ///
+  /// Scoped to this segment, not to the whole bot turn.
+  String? accumulatedText;
+
+  /// The portion of [text] not yet spoken.
+  String? remainingText;
+
+  /// Identifies the segment, correlating its updates. Stable for the session.
+  int? segmentId;
 
   List<Object?> _toList() {
     return <Object?>[
       text,
-      isSpoken,
       aggregatedBy,
+      willBeSpoken,
+      spokenStatus,
+      accumulatedText,
+      remainingText,
+      segmentId,
     ];
   }
 
@@ -590,8 +645,12 @@ class BotOutputEvent extends PipecatEvent {
     result as List<Object?>;
     return BotOutputEvent(
       text: result[0]! as String,
-      isSpoken: result[1]! as bool,
-      aggregatedBy: result[2]! as String,
+      aggregatedBy: result[1]! as String,
+      willBeSpoken: result[2] as bool?,
+      spokenStatus: result[3] as BotOutputSpokenStatus?,
+      accumulatedText: result[4] as String?,
+      remainingText: result[5] as String?,
+      segmentId: result[6] as int?,
     );
   }
 
@@ -1428,98 +1487,101 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is ConnectionState) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is SpeakingState) {
+    }    else if (value is BotOutputSpokenStatus) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is UserMuteState) {
+    }    else if (value is SpeakingState) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is InsightType) {
+    }    else if (value is UserMuteState) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is BotConnectionState) {
+    }    else if (value is InsightType) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is StartBotParams) {
+    }    else if (value is BotConnectionState) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    }    else if (value is SendTextParams) {
+      writeValue(buffer, value.index);
+    }    else if (value is StartBotParams) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is SendLlmFunctionCallResultParams) {
+    }    else if (value is SendTextParams) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is SendClientMessageParams) {
+    }    else if (value is SendLlmFunctionCallResultParams) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is SendClientRequestParams) {
+    }    else if (value is SendClientMessageParams) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is SendClientRequestResult) {
+    }    else if (value is SendClientRequestParams) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is ConnectionStateEvent) {
+    }    else if (value is SendClientRequestResult) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is BackendErrorEvent) {
+    }    else if (value is ConnectionStateEvent) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is UserTranscriptionEvent) {
+    }    else if (value is BackendErrorEvent) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is BotOutputEvent) {
+    }    else if (value is UserTranscriptionEvent) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakingEvent) {
+    }    else if (value is BotOutputEvent) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is UserMuteEvent) {
+    }    else if (value is SpeakingEvent) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is ServerInsightEvent) {
+    }    else if (value is UserMuteEvent) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is UserLLMText) {
+    }    else if (value is ServerInsightEvent) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is BotLLMText) {
+    }    else if (value is UserLLMText) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is BotTTSText) {
+    }    else if (value is BotLLMText) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is LlmFunctionCallStartedEvent) {
+    }    else if (value is BotTTSText) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is LlmFunctionCallInProgressEvent) {
+    }    else if (value is LlmFunctionCallStartedEvent) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is LlmFunctionCallStoppedEvent) {
+    }    else if (value is LlmFunctionCallInProgressEvent) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is InputStatusUpdatedEvent) {
+    }    else if (value is LlmFunctionCallStoppedEvent) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is BotConnectionEvent) {
+    }    else if (value is InputStatusUpdatedEvent) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is BotReadyEvent) {
+    }    else if (value is BotConnectionEvent) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    }    else if (value is ServerMessageEvent) {
+    }    else if (value is BotReadyEvent) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    }    else if (value is PipecatMetricSample) {
+    }    else if (value is ServerMessageEvent) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    }    else if (value is MetricsEvent) {
+    }    else if (value is PipecatMetricSample) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    }    else if (value is TimelineEvent) {
+    }    else if (value is MetricsEvent) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioLevel) {
+    }    else if (value is TimelineEvent) {
       buffer.putUint8(160);
+      writeValue(buffer, value.encode());
+    }    else if (value is AudioLevel) {
+      buffer.putUint8(161);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1534,69 +1596,72 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : ConnectionState.values[value];
       case 130: 
         final value = readValue(buffer) as int?;
-        return value == null ? null : SpeakingState.values[value];
+        return value == null ? null : BotOutputSpokenStatus.values[value];
       case 131: 
         final value = readValue(buffer) as int?;
-        return value == null ? null : UserMuteState.values[value];
+        return value == null ? null : SpeakingState.values[value];
       case 132: 
         final value = readValue(buffer) as int?;
-        return value == null ? null : InsightType.values[value];
+        return value == null ? null : UserMuteState.values[value];
       case 133: 
         final value = readValue(buffer) as int?;
-        return value == null ? null : BotConnectionState.values[value];
+        return value == null ? null : InsightType.values[value];
       case 134: 
-        return StartBotParams.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : BotConnectionState.values[value];
       case 135: 
-        return SendTextParams.decode(readValue(buffer)!);
+        return StartBotParams.decode(readValue(buffer)!);
       case 136: 
-        return SendLlmFunctionCallResultParams.decode(readValue(buffer)!);
+        return SendTextParams.decode(readValue(buffer)!);
       case 137: 
-        return SendClientMessageParams.decode(readValue(buffer)!);
+        return SendLlmFunctionCallResultParams.decode(readValue(buffer)!);
       case 138: 
-        return SendClientRequestParams.decode(readValue(buffer)!);
+        return SendClientMessageParams.decode(readValue(buffer)!);
       case 139: 
-        return SendClientRequestResult.decode(readValue(buffer)!);
+        return SendClientRequestParams.decode(readValue(buffer)!);
       case 140: 
-        return ConnectionStateEvent.decode(readValue(buffer)!);
+        return SendClientRequestResult.decode(readValue(buffer)!);
       case 141: 
-        return BackendErrorEvent.decode(readValue(buffer)!);
+        return ConnectionStateEvent.decode(readValue(buffer)!);
       case 142: 
-        return UserTranscriptionEvent.decode(readValue(buffer)!);
+        return BackendErrorEvent.decode(readValue(buffer)!);
       case 143: 
-        return BotOutputEvent.decode(readValue(buffer)!);
+        return UserTranscriptionEvent.decode(readValue(buffer)!);
       case 144: 
-        return SpeakingEvent.decode(readValue(buffer)!);
+        return BotOutputEvent.decode(readValue(buffer)!);
       case 145: 
-        return UserMuteEvent.decode(readValue(buffer)!);
+        return SpeakingEvent.decode(readValue(buffer)!);
       case 146: 
-        return ServerInsightEvent.decode(readValue(buffer)!);
+        return UserMuteEvent.decode(readValue(buffer)!);
       case 147: 
-        return UserLLMText.decode(readValue(buffer)!);
+        return ServerInsightEvent.decode(readValue(buffer)!);
       case 148: 
-        return BotLLMText.decode(readValue(buffer)!);
+        return UserLLMText.decode(readValue(buffer)!);
       case 149: 
-        return BotTTSText.decode(readValue(buffer)!);
+        return BotLLMText.decode(readValue(buffer)!);
       case 150: 
-        return LlmFunctionCallStartedEvent.decode(readValue(buffer)!);
+        return BotTTSText.decode(readValue(buffer)!);
       case 151: 
-        return LlmFunctionCallInProgressEvent.decode(readValue(buffer)!);
+        return LlmFunctionCallStartedEvent.decode(readValue(buffer)!);
       case 152: 
-        return LlmFunctionCallStoppedEvent.decode(readValue(buffer)!);
+        return LlmFunctionCallInProgressEvent.decode(readValue(buffer)!);
       case 153: 
-        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
+        return LlmFunctionCallStoppedEvent.decode(readValue(buffer)!);
       case 154: 
-        return BotConnectionEvent.decode(readValue(buffer)!);
+        return InputStatusUpdatedEvent.decode(readValue(buffer)!);
       case 155: 
-        return BotReadyEvent.decode(readValue(buffer)!);
+        return BotConnectionEvent.decode(readValue(buffer)!);
       case 156: 
-        return ServerMessageEvent.decode(readValue(buffer)!);
+        return BotReadyEvent.decode(readValue(buffer)!);
       case 157: 
-        return PipecatMetricSample.decode(readValue(buffer)!);
+        return ServerMessageEvent.decode(readValue(buffer)!);
       case 158: 
-        return MetricsEvent.decode(readValue(buffer)!);
+        return PipecatMetricSample.decode(readValue(buffer)!);
       case 159: 
-        return TimelineEvent.decode(readValue(buffer)!);
+        return MetricsEvent.decode(readValue(buffer)!);
       case 160: 
+        return TimelineEvent.decode(readValue(buffer)!);
+      case 161: 
         return AudioLevel.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

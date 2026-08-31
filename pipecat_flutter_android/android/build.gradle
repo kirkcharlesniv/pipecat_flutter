@@ -14,20 +14,23 @@ allprojects {
     }
 }
 
+// Kotlin 2.3 removed the `kotlinOptions` DSL in favour of `compilerOptions`.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+    }
+}
+
 android {
     if (project.android.hasProperty("namespace")) {
         namespace 'com.kcniverba'
     }
 
-    compileSdk 34
+    compileSdk 36
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     sourceSets {
@@ -43,16 +46,18 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 19
+        minSdkVersion 24
     }
 
     dependencies {
         // Exclude ai.pipecat:client AAR — we compile the vendored source directly above.
-        implementation("ai.pipecat:daily-transport:1.1.0") {
+        implementation("ai.pipecat:daily-transport:1.2.1") {
             exclude group: "ai.pipecat", module: "client"
         }
-        implementation "co.daily:client:0.37.0" // Override transitive 0.35.0: crash fix for leave() during network failure
-        implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"
+        // Matches what daily-transport 1.2.1 already resolves. Pinned explicitly so the
+        // Daily version is visible here rather than buried in a transitive graph.
+        implementation "co.daily:client:0.39.1"
+        implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0"
         implementation "com.squareup.okhttp3:okhttp:4.12.0"
 
         testImplementation 'org.jetbrains.kotlin:kotlin-test'

@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'pipecat_flutter_ios'
-  s.version          = '3.0.4'
+  s.version          = '4.0.0'
   s.summary          = 'An iOS implementation of the pipecat_flutter plugin.'
   s.description      = <<-DESC
   An iOS implementation of the pipecat_flutter plugin.
@@ -23,6 +23,6 @@ Pod::Spec.new do |s|
   # mode. This mirrors the language mode the vendored PipecatClientIOS pod uses.
   s.swift_version = '5.0'
   
-  s.dependency 'PipecatClientIOS', '~> 1.2'
-  s.dependency 'PipecatClientIOSDaily', '~> 1.2'
+  s.dependency 'PipecatClientIOS', '~> 1.3'
+  s.dependency 'PipecatClientIOSDaily', '~> 1.3'
 end

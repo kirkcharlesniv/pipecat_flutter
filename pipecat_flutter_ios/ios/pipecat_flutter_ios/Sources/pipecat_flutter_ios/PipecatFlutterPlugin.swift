@@ -715,11 +715,22 @@ public class PipecatFlutterPlugin: NSObject, FlutterPlugin, @preconcurrency Pipe
 
   public func onBotOutput(data: PipecatClientIOS.BotOutputData) {
     guard isSessionActive else { return }
+    let spokenStatus: BotOutputSpokenStatus?
+    switch data.spokenStatus {
+    case .new: spokenStatus = .newSegment
+    case .inProgress: spokenStatus = .inProgress
+    case .completed: spokenStatus = .completed
+    case nil: spokenStatus = nil
+    }
     emitTimelineEvent(
       event: BotOutputEvent(
         text: data.text,
-        isSpoken: data.spoken,
-        aggregatedBy: data.aggregatedBy.rawValue
+        aggregatedBy: data.aggregatedBy.rawValue,
+        willBeSpoken: data.willBeSpoken,
+        spokenStatus: spokenStatus,
+        accumulatedText: data.spokenProgress?.accumulatedText,
+        remainingText: data.spokenProgress?.remainingText,
+        segmentId: data.segmentId.map(Int64.init)
       ),
       sessionEpoch: activeSessionEpoch
     )

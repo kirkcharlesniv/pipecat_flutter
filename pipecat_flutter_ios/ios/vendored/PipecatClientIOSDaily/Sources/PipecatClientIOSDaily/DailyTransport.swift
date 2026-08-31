@@ -269,6 +269,8 @@ public class DailyTransport: Transport {
 
     public func release() {
         VideoTrackRegistry.clearRegistry()
+        // voiceClientOptions.transport points back at self, which otherwise keeps this instance alive forever.
+        self.voiceClientOptions = nil
         // It should automatically trigger deinit inside CallClient
         self.callClient = nil
         self.observers.removeAll()

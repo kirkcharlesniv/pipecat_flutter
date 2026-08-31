@@ -134,6 +134,17 @@ enum ConnectionState: Int {
   case disconnected = 2
 }
 
+/// Lifecycle stage of a spoken segment under RTVI 2.0.
+enum BotOutputSpokenStatus: Int {
+  /// A new segment is about to be spoken. Carries the canonical text.
+  case newSegment = 0
+  /// TTS is partway through the segment. Carries
+  /// [BotOutputEvent.accumulatedText] and [BotOutputEvent.remainingText].
+  case inProgress = 1
+  /// The segment finished being spoken.
+  case completed = 2
+}
+
 enum SpeakingState: Int {
   /// Emitted when the user begins speaking
   case userStartedSpeaking = 0
@@ -508,36 +519,80 @@ struct UserTranscriptionEvent: PipecatEvent {
   }
 }
 
-/// The best-effort representation of the bot's output text, including both
-/// spoken and unspoken text.
+/// A segment of the bot's output text.
+///
+/// Under RTVI 2.0 every event carries the **complete** text of its segment,
+/// re-sent on each update, alongside exactly how much of it has been spoken.
+/// Clients key on [segmentId] and read the spoken position off the wire rather
+/// than stitching fragments together.
+///
+/// Two emission shapes exist depending on whether the TTS service reports word
+/// timestamps, and clients must handle both:
+///
+/// * **word-timestamp path** — `newSegment`, then repeated `inProgress` updates
+///   carrying [accumulatedText]/[remainingText], then `completed`.
+/// * **post-synthesis path** — a single `completed` event with
+///   [accumulatedText] equal to [text]. There is no `newSegment`.
+///
+/// [spokenStatus] is null whenever [willBeSpoken] is false: that text is never
+/// spoken, so no progress will ever follow and it should be surfaced
+/// immediately.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct BotOutputEvent: PipecatEvent {
-  /// The output text from the bot.
+  /// The complete text of this segment.
   var text: String
-  /// Indicates if this text was spoken by the bot.
-  var isSpoken: Bool
-  /// Indicates how the text was aggregated.
+  /// Indicates how the text was aggregated (`sentence`, or a custom
+  /// server-defined type such as `code` or `url`).
+  ///
+  /// `word` and `token` are not emitted under RTVI 2.0 — word-level detail
+  /// arrives as [spokenStatus]/[accumulatedText] progress on the segment.
   var aggregatedBy: String
+  /// Whether this text will be spoken by TTS.
+  ///
+  /// When false, [spokenStatus] is null and no progress events follow.
+  var willBeSpoken: Bool? = nil
+  /// Lifecycle stage of this segment. Null when [willBeSpoken] is false.
+  var spokenStatus: BotOutputSpokenStatus? = nil
+  /// The portion of [text] spoken so far.
+  ///
+  /// Scoped to this segment, not to the whole bot turn.
+  var accumulatedText: String? = nil
+  /// The portion of [text] not yet spoken.
+  var remainingText: String? = nil
+  /// Identifies the segment, correlating its updates. Stable for the session.
+  var segmentId: Int64? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> BotOutputEvent? {
     let text = pigeonVar_list[0] as! String
-    let isSpoken = pigeonVar_list[1] as! Bool
-    let aggregatedBy = pigeonVar_list[2] as! String
+    let aggregatedBy = pigeonVar_list[1] as! String
+    let willBeSpoken: Bool? = nilOrValue(pigeonVar_list[2])
+    let spokenStatus: BotOutputSpokenStatus? = nilOrValue(pigeonVar_list[3])
+    let accumulatedText: String? = nilOrValue(pigeonVar_list[4])
+    let remainingText: String? = nilOrValue(pigeonVar_list[5])
+    let segmentId: Int64? = nilOrValue(pigeonVar_list[6])
 
     return BotOutputEvent(
       text: text,
-      isSpoken: isSpoken,
-      aggregatedBy: aggregatedBy
+      aggregatedBy: aggregatedBy,
+      willBeSpoken: willBeSpoken,
+      spokenStatus: spokenStatus,
+      accumulatedText: accumulatedText,
+      remainingText: remainingText,
+      segmentId: segmentId
     )
   }
   func toList() -> [Any?] {
     return [
       text,
-      isSpoken,
       aggregatedBy,
+      willBeSpoken,
+      spokenStatus,
+      accumulatedText,
+      remainingText,
+      segmentId,
     ]
   }
   static func == (lhs: BotOutputEvent, rhs: BotOutputEvent) -> Bool {
@@ -1082,80 +1137,86 @@ private class PipecatApiPigeonCodecReader: FlutterStandardReader {
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return SpeakingState(rawValue: enumResultAsInt)
+        return BotOutputSpokenStatus(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return UserMuteState(rawValue: enumResultAsInt)
+        return SpeakingState(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return InsightType(rawValue: enumResultAsInt)
+        return UserMuteState(rawValue: enumResultAsInt)
       }
       return nil
     case 133:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return BotConnectionState(rawValue: enumResultAsInt)
+        return InsightType(rawValue: enumResultAsInt)
       }
       return nil
     case 134:
-      return StartBotParams.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return BotConnectionState(rawValue: enumResultAsInt)
+      }
+      return nil
     case 135:
-      return SendTextParams.fromList(self.readValue() as! [Any?])
+      return StartBotParams.fromList(self.readValue() as! [Any?])
     case 136:
-      return SendLlmFunctionCallResultParams.fromList(self.readValue() as! [Any?])
+      return SendTextParams.fromList(self.readValue() as! [Any?])
     case 137:
-      return SendClientMessageParams.fromList(self.readValue() as! [Any?])
+      return SendLlmFunctionCallResultParams.fromList(self.readValue() as! [Any?])
     case 138:
-      return SendClientRequestParams.fromList(self.readValue() as! [Any?])
+      return SendClientMessageParams.fromList(self.readValue() as! [Any?])
     case 139:
-      return SendClientRequestResult.fromList(self.readValue() as! [Any?])
+      return SendClientRequestParams.fromList(self.readValue() as! [Any?])
     case 140:
-      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
+      return SendClientRequestResult.fromList(self.readValue() as! [Any?])
     case 141:
-      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
+      return ConnectionStateEvent.fromList(self.readValue() as! [Any?])
     case 142:
-      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
+      return BackendErrorEvent.fromList(self.readValue() as! [Any?])
     case 143:
-      return BotOutputEvent.fromList(self.readValue() as! [Any?])
+      return UserTranscriptionEvent.fromList(self.readValue() as! [Any?])
     case 144:
-      return SpeakingEvent.fromList(self.readValue() as! [Any?])
+      return BotOutputEvent.fromList(self.readValue() as! [Any?])
     case 145:
-      return UserMuteEvent.fromList(self.readValue() as! [Any?])
+      return SpeakingEvent.fromList(self.readValue() as! [Any?])
     case 146:
-      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
+      return UserMuteEvent.fromList(self.readValue() as! [Any?])
     case 147:
-      return UserLLMText.fromList(self.readValue() as! [Any?])
+      return ServerInsightEvent.fromList(self.readValue() as! [Any?])
     case 148:
-      return BotLLMText.fromList(self.readValue() as! [Any?])
+      return UserLLMText.fromList(self.readValue() as! [Any?])
     case 149:
-      return BotTTSText.fromList(self.readValue() as! [Any?])
+      return BotLLMText.fromList(self.readValue() as! [Any?])
     case 150:
-      return LlmFunctionCallStartedEvent.fromList(self.readValue() as! [Any?])
+      return BotTTSText.fromList(self.readValue() as! [Any?])
     case 151:
-      return LlmFunctionCallInProgressEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallStartedEvent.fromList(self.readValue() as! [Any?])
     case 152:
-      return LlmFunctionCallStoppedEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallInProgressEvent.fromList(self.readValue() as! [Any?])
     case 153:
-      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
+      return LlmFunctionCallStoppedEvent.fromList(self.readValue() as! [Any?])
     case 154:
-      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
+      return InputStatusUpdatedEvent.fromList(self.readValue() as! [Any?])
     case 155:
-      return BotReadyEvent.fromList(self.readValue() as! [Any?])
+      return BotConnectionEvent.fromList(self.readValue() as! [Any?])
     case 156:
-      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
+      return BotReadyEvent.fromList(self.readValue() as! [Any?])
     case 157:
-      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
+      return ServerMessageEvent.fromList(self.readValue() as! [Any?])
     case 158:
-      return MetricsEvent.fromList(self.readValue() as! [Any?])
+      return PipecatMetricSample.fromList(self.readValue() as! [Any?])
     case 159:
-      return TimelineEvent.fromList(self.readValue() as! [Any?])
+      return MetricsEvent.fromList(self.readValue() as! [Any?])
     case 160:
+      return TimelineEvent.fromList(self.readValue() as! [Any?])
+    case 161:
       return AudioLevel.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1168,98 +1229,101 @@ private class PipecatApiPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? ConnectionState {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? SpeakingState {
+    } else if let value = value as? BotOutputSpokenStatus {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? UserMuteState {
+    } else if let value = value as? SpeakingState {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? InsightType {
+    } else if let value = value as? UserMuteState {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? BotConnectionState {
+    } else if let value = value as? InsightType {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? StartBotParams {
+    } else if let value = value as? BotConnectionState {
       super.writeByte(134)
-      super.writeValue(value.toList())
-    } else if let value = value as? SendTextParams {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? StartBotParams {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? SendLlmFunctionCallResultParams {
+    } else if let value = value as? SendTextParams {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? SendClientMessageParams {
+    } else if let value = value as? SendLlmFunctionCallResultParams {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? SendClientRequestParams {
+    } else if let value = value as? SendClientMessageParams {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? SendClientRequestResult {
+    } else if let value = value as? SendClientRequestParams {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionStateEvent {
+    } else if let value = value as? SendClientRequestResult {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? BackendErrorEvent {
+    } else if let value = value as? ConnectionStateEvent {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? UserTranscriptionEvent {
+    } else if let value = value as? BackendErrorEvent {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? BotOutputEvent {
+    } else if let value = value as? UserTranscriptionEvent {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakingEvent {
+    } else if let value = value as? BotOutputEvent {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? UserMuteEvent {
+    } else if let value = value as? SpeakingEvent {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerInsightEvent {
+    } else if let value = value as? UserMuteEvent {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? UserLLMText {
+    } else if let value = value as? ServerInsightEvent {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? BotLLMText {
+    } else if let value = value as? UserLLMText {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? BotTTSText {
+    } else if let value = value as? BotLLMText {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? LlmFunctionCallStartedEvent {
+    } else if let value = value as? BotTTSText {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? LlmFunctionCallInProgressEvent {
+    } else if let value = value as? LlmFunctionCallStartedEvent {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? LlmFunctionCallStoppedEvent {
+    } else if let value = value as? LlmFunctionCallInProgressEvent {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? InputStatusUpdatedEvent {
+    } else if let value = value as? LlmFunctionCallStoppedEvent {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? BotConnectionEvent {
+    } else if let value = value as? InputStatusUpdatedEvent {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? BotReadyEvent {
+    } else if let value = value as? BotConnectionEvent {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? ServerMessageEvent {
+    } else if let value = value as? BotReadyEvent {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? PipecatMetricSample {
+    } else if let value = value as? ServerMessageEvent {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? MetricsEvent {
+    } else if let value = value as? PipecatMetricSample {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? TimelineEvent {
+    } else if let value = value as? MetricsEvent {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioLevel {
+    } else if let value = value as? TimelineEvent {
       super.writeByte(160)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioLevel {
+      super.writeByte(161)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

@@ -222,23 +222,76 @@ final class UserTranscriptionEvent extends PipecatEvent {
   final String userId;
 }
 
-/// The best-effort representation of the bot's output text, including both
-/// spoken and unspoken text.
+/// Lifecycle stage of a spoken segment under RTVI 2.0.
+enum BotOutputSpokenStatus {
+  /// A new segment is about to be spoken. Carries the canonical text.
+  newSegment,
+
+  /// TTS is partway through the segment. Carries
+  /// [BotOutputEvent.accumulatedText] and [BotOutputEvent.remainingText].
+  inProgress,
+
+  /// The segment finished being spoken.
+  completed,
+}
+
+/// A segment of the bot's output text.
+///
+/// Under RTVI 2.0 every event carries the **complete** text of its segment,
+/// re-sent on each update, alongside exactly how much of it has been spoken.
+/// Clients key on [segmentId] and read the spoken position off the wire rather
+/// than stitching fragments together.
+///
+/// Two emission shapes exist depending on whether the TTS service reports word
+/// timestamps, and clients must handle both:
+///
+/// * **word-timestamp path** — `newSegment`, then repeated `inProgress` updates
+///   carrying [accumulatedText]/[remainingText], then `completed`.
+/// * **post-synthesis path** — a single `completed` event with
+///   [accumulatedText] equal to [text]. There is no `newSegment`.
+///
+/// [spokenStatus] is null whenever [willBeSpoken] is false: that text is never
+/// spoken, so no progress will ever follow and it should be surfaced
+/// immediately.
 final class BotOutputEvent extends PipecatEvent {
   BotOutputEvent({
     required this.text,
-    required this.isSpoken,
     required this.aggregatedBy,
+    this.willBeSpoken,
+    this.spokenStatus,
+    this.accumulatedText,
+    this.remainingText,
+    this.segmentId,
   });
 
-  /// The output text from the bot.
+  /// The complete text of this segment.
   final String text;
 
-  /// Indicates if this text was spoken by the bot.
-  final bool isSpoken;
-
-  /// Indicates how the text was aggregated.
+  /// Indicates how the text was aggregated (`sentence`, or a custom
+  /// server-defined type such as `code` or `url`).
+  ///
+  /// `word` and `token` are not emitted under RTVI 2.0 — word-level detail
+  /// arrives as [spokenStatus]/[accumulatedText] progress on the segment.
   final String aggregatedBy;
+
+  /// Whether this text will be spoken by TTS.
+  ///
+  /// When false, [spokenStatus] is null and no progress events follow.
+  final bool? willBeSpoken;
+
+  /// Lifecycle stage of this segment. Null when [willBeSpoken] is false.
+  final BotOutputSpokenStatus? spokenStatus;
+
+  /// The portion of [text] spoken so far.
+  ///
+  /// Scoped to this segment, not to the whole bot turn.
+  final String? accumulatedText;
+
+  /// The portion of [text] not yet spoken.
+  final String? remainingText;
+
+  /// Identifies the segment, correlating its updates. Stable for the session.
+  final int? segmentId;
 }
 
 enum SpeakingState {

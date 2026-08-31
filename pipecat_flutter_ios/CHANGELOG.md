@@ -1,3 +1,11 @@
+## 4.0.0
+
+- **BREAKING**: Emit the RTVI 2.0 fields on `BotOutputEvent` and stop forwarding `spoken` as `isSpoken`.
+- feat: Rebase the vendored `PipecatClientIOS` / `PipecatClientIOSDaily` forks onto upstream 1.3.0. Advertises RTVI `2.0.0`. Picks up the upstream `DailyTransport` memory-leak fix.
+- feat: Daily pod 0.37.0 -> 0.39.x.
+- chore: Drop the local `dailyCallClient` accessor; upstream has exposed it since 0.3.6. The multi-observer patch (`DailyTransportObserver`, plus the `publishingUpdated`/`subscriptionsUpdated` delegate methods upstream still does not implement) is re-applied unchanged.
+- fix: `podspec` version now tracks `pubspec.yaml` (was stuck at 3.0.4).
+
 ## 3.1.0
 
 - feat: Emit an `InputStatusUpdatedEvent` whenever the local microphone's observed sending state (`inputs.microphone` ∧ `publishing.microphone`) changes — including poll-driven reconcile convergence that no Daily transport callback would surface — so the client's mic indicator can never lag the real capture state.

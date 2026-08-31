@@ -1421,8 +1421,20 @@ class PipecatFlutterPlugin : FlutterPlugin, PipecatHostApi {
                     emitTimelineEvent(
                         event = BotOutputEvent(
                             text = data.text,
-                            isSpoken = data.spoken,
                             aggregatedBy = data.aggregatedBy,
+                            willBeSpoken = data.willBeSpoken,
+                            spokenStatus = when (data.spokenStatus) {
+                                BotOutputData.SpokenStatus.New ->
+                                    BotOutputSpokenStatus.NEW_SEGMENT
+                                BotOutputData.SpokenStatus.InProgress ->
+                                    BotOutputSpokenStatus.IN_PROGRESS
+                                BotOutputData.SpokenStatus.Completed ->
+                                    BotOutputSpokenStatus.COMPLETED
+                                null -> null
+                            },
+                            accumulatedText = data.spokenProgress?.accumulatedText,
+                            remainingText = data.spokenProgress?.remainingText,
+                            segmentId = data.segmentId?.toLong(),
                         ),
                         sessionEpoch = sessionEpoch,
                     )

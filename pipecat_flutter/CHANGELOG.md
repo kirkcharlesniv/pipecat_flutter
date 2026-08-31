@@ -1,3 +1,11 @@
+## 5.0.0
+
+- **BREAKING**: `BotOutputEvent.isSpoken` is removed. The RTVI 2.0 wire still carries `spoken`, but it means "came from a post-synthesis TTSTextFrame", not "was spoken" — use `willBeSpoken` and `spokenStatus` instead. Under RTVI 2.0 the server no longer emits word-level `bot-output` events at all; it sends `willBeSpoken`, `spokenStatus`, `accumulatedText`/`remainingText` and `segmentId` on the sentence events instead, and tracks speech progress server-side. Apps that drove word-by-word UI from `aggregatedBy == 'word' && isSpoken` must migrate to `spokenStatus`/`accumulatedText`.
+- **BREAKING**: The vendored native SDKs now advertise RTVI protocol `2.0.0` in `client-ready` (previously `1.0.0`). A pipecat server on protocol 2.x will switch wire formats accordingly; pipecat-ai >= 1.8 is required.
+- feat: Rebase the vendored Pipecat SDK forks onto upstream Android 1.2.0 / iOS 1.3.0. The function-call lifecycle patch is unchanged (upstream still only decodes the deprecated `llm-function-call`).
+- feat: Daily SDK 0.37.0 -> 0.39.x on both platforms: automatic fallback to `dailywebrtc.com`/`.net` when `daily.co` nameservers are unreachable, signalling-reconnect panic fixes, and a segfault fix for `release()` during an active call.
+- chore: Android `minSdk` is now 24 (was 19), required by `ai.pipecat:daily-transport:1.2.1`.
+
 ## 4.0.0
 
 - **BREAKING**: Remove the Dart-side compat-bridge synthesizer. The `events` stream is now a plain passthrough of native platform events. Apps must use modern pipecat servers that emit `llm-function-call-started/in-progress/stopped` as first-class RTVI messages — both iOS (vendored SDK) and Android (vendored SDK, this release) now handle these natively.

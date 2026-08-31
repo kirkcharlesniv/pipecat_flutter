@@ -30,6 +30,13 @@ open class PipecatClient {
             self.transport.setState(state: .ready)
             if let botReadyData = try? JSONDecoder().decode(BotReadyData.self, from: Data(voiceMessage.data!.utf8)) {
                 Logger.shared.info("Bot ready: \(botReadyData)")
+                let botMajor = Int(botReadyData.version.split(separator: ".").first ?? "0") ?? 0
+                let clientMajor = Int(PipecatClient.rtviProtocolVersion.split(separator: ".").first ?? "0") ?? 0
+                if botMajor < clientMajor {
+                    Logger.shared.warn(
+                        "Bot is running an older RTVI protocol version (\(botReadyData.version)) than the client (\(PipecatClient.rtviProtocolVersion)). Some features may not be available."
+                    )
+                }
                 self.delegate?.onBotReady(botReadyData: botReadyData)
             }
         case RTVIMessageInbound.MessageType.USER_TRANSCRIPTION:
@@ -303,11 +310,11 @@ open class PipecatClient {
 
         do {
             if let customBodyParams = startBotParams.requestData {
-                request.httpBody = try JSONEncoder().encode(startBotParams.requestData)
+                request.httpBody = try JSONEncoder().encode(customBodyParams)
             }
 
             Logger.shared.debug(
-                "Fetching from \(String(data: request.httpBody!, encoding: .utf8) ?? "")"
+                "Fetching from \(startBotParams.endpoint) with body: \(request.httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? "none")"
             )
 
             // Create a custom URLSession configuration with the timeout from APIRequest
